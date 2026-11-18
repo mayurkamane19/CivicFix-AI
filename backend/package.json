@@ -25,6 +25,7 @@
     "test:complaint-image": "node test-complaint-image-integration.js",
     "test:frontend-display": "node test-frontend-image-display.js",
     "test:image-regression": "node test-image-analysis-regression.js",
+    "test:feedback": "node test-feedback.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:officer": "node scripts/seedOfficer.js"
