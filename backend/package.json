@@ -1,0 +1,54 @@
+{
+  "name": "civicfix-backend",
+  "version": "1.0.0",
+  "description": "CivicFix AI - Backend API service",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node ./node_modules/nodemon/bin/nodemon.js src/server.js",
+    "start": "node src/server.js",
+    "test": "node test-models.js && node test-auth.js && node test-complaints.js && node test-image-upload.js && node test-gemini-ai.js && node test-duplicate-detection.js && node test-admin.js && node test-security.js && node test-history.js && node test-department-officer.js && node test-gis-map.js && node test-email-notifications.js && node test-analytics.js && node test-ai-image-analysis.js && node test-complaint-image-integration.js && node test-frontend-image-display.js",
+    "test:models": "node test-models.js",
+    "test:auth": "node test-auth.js",
+    "test:complaints": "node test-complaints.js",
+    "test:upload": "node test-image-upload.js",
+    "test:ai": "node test-gemini-ai.js",
+    "test:duplicates": "node test-duplicate-detection.js",
+    "test:admin": "node test-admin.js",
+    "test:security": "node test-security.js",
+    "test:history": "node test-history.js",
+    "test:assignment": "node test-department-officer.js",
+    "test:map": "node test-gis-map.js",
+    "test:notifications": "node test-email-notifications.js",
+    "test:analytics": "node test-analytics.js",
+    "test:image-ai": "node test-ai-image-analysis.js",
+    "test:complaint-image": "node test-complaint-image-integration.js",
+    "test:frontend-display": "node test-frontend-image-display.js",
+    "seed:admin": "node scripts/seedAdmin.js",
+    "seed:departments": "node scripts/seedDepartments.js",
+    "seed:officer": "node scripts/seedOfficer.js"
+  },
+  "keywords": [
+    "civicfix",
+    "express",
+    "node",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^3.4.0",
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^2.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.12.1",
+    "multer": "^2.5.0",
+    "nodemailer": "^10.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
