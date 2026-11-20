@@ -1746,6 +1746,99 @@ export const getMyFeedbackApi = async () => {
   }
 };
 
+/**
+ * Admin: GET /api/admin/feedback
+ * Retrieves paginated, filtered feedback records for administrative audit.
+ * @param {object} options
+ * @param {number} [options.page=1]
+ * @param {number} [options.limit=10]
+ * @param {number|string} [options.rating='']
+ * @param {string} [options.search='']
+ * @returns {Promise<{success: boolean, data?: Array<object>, pagination?: object, error?: string}>}
+ */
+export const getAdminFeedbackApi = async ({
+  page = 1,
+  limit = 10,
+  rating = '',
+  search = ''
+} = {}) => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Administrator authentication token required' };
+    }
+
+    const queryParams = new URLSearchParams();
+    if (page) queryParams.append('page', page);
+    if (limit) queryParams.append('limit', limit);
+    if (rating && rating !== 'all') queryParams.append('rating', rating);
+    if (search && search.trim()) queryParams.append('search', search.trim());
+
+    const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/admin/feedback${qs}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch admin feedback records' };
+    }
+
+    return {
+      success: true,
+      data: data.data?.feedbacks || [],
+      pagination: data.data?.pagination || {
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false
+      }
+    };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error fetching admin feedback' };
+  }
+};
+
+/**
+ * Admin: GET /api/admin/feedback/stats
+ * Retrieves aggregated satisfaction metrics and rating distribution for admin dashboard.
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getAdminFeedbackStatsApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Administrator authentication token required' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/feedback/stats`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch admin feedback statistics' };
+    }
+
+    return {
+      success: true,
+      data: data.data?.stats || data.data
+    };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error fetching feedback statistics' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -1791,6 +1884,8 @@ export default {
   submitFeedbackApi,
   getComplaintFeedbackApi,
   getMyFeedbackApi,
+  getAdminFeedbackApi,
+  getAdminFeedbackStatsApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

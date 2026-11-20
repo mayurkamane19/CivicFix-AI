@@ -8,6 +8,7 @@ import ComplaintAssignmentModal from '../components/admin/ComplaintAssignmentMod
 import DepartmentManagement from '../components/admin/DepartmentManagement';
 import OfficerManagement from '../components/admin/OfficerManagement';
 import NotificationManagement from '../components/admin/NotificationManagement';
+import FeedbackManagement from '../components/admin/FeedbackManagement';
 import AdminComplaintMap from '../components/map/AdminComplaintMap';
 import AnalyticsDashboard from '../components/analytics/AnalyticsDashboard';
 import {
@@ -390,6 +391,13 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
             >
               📬 Notifications
             </button>
+            <button
+              type="button"
+              className={`admin-tab-btn ${activeTab === 'feedback' ? 'active' : ''}`}
+              onClick={() => setActiveTab('feedback')}
+            >
+              ⭐ Citizen Feedback
+            </button>
           </nav>
         </div>
       </header>
@@ -577,6 +585,13 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
         {activeTab === 'notifications' && (
           <div className="admin-notifications-section">
             <NotificationManagement />
+          </div>
+        )}
+
+        {/* TAB 7: CITIZEN FEEDBACK & RESOLUTION RATINGS */}
+        {activeTab === 'feedback' && (
+          <div className="admin-feedback-section">
+            <FeedbackManagement />
           </div>
         )}
       </main>

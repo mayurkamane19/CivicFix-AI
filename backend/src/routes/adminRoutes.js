@@ -25,6 +25,10 @@ import {
   getGeographyController,
   exportCsvController
 } from '../controllers/analyticsController.js';
+import {
+  getAdminFeedbackList,
+  getAdminFeedbackStats
+} from '../controllers/adminFeedbackController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -66,5 +70,9 @@ router.get('/analytics/resolution', getResolutionController);
 router.get('/analytics/severity', getSeverityController);
 router.get('/analytics/geography', getGeographyController);
 router.get('/analytics/export', exportCsvController);
+
+// Citizen Feedback Management & Analytics Endpoints (Admin Only)
+router.get('/feedback/stats', getAdminFeedbackStats);
+router.get('/feedback', getAdminFeedbackList);
 
 export default router;

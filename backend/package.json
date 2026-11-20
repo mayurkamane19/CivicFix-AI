@@ -28,6 +28,8 @@
     "test:feedback": "node test-feedback.js",
     "test:feedback-api": "node test-feedback-api.js",
     "test:feedback-ui": "node test-feedback-ui.js",
+    "test:admin-feedback": "node test-admin-feedback.js",
+    "test:admin-feedback-ui": "node test-admin-feedback-ui.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:officer": "node scripts/seedOfficer.js"

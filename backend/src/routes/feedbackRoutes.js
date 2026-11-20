@@ -1,9 +1,11 @@
 import express from 'express';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect, authorize } from '../middleware/authMiddleware.js';
 import {
   submitComplaintFeedback,
   getComplaintFeedback,
-  getMyFeedback
+  getMyFeedback,
+  getAdminFeedbackList,
+  getAdminFeedbackStats
 } from '../controllers/feedbackController.js';
 
 const router = express.Router();
@@ -31,5 +33,11 @@ router.post('/:complaintId', submitComplaintFeedback);
  * @access  Protected (Complaint Owner or Municipal Administrator)
  */
 router.get('/complaint/:complaintId', getComplaintFeedback);
+
+/**
+ * Administrative Feedback Aliases (Admin Only)
+ */
+router.get('/admin/stats', authorize('admin'), getAdminFeedbackStats);
+router.get('/admin', authorize('admin'), getAdminFeedbackList);
 
 export default router;

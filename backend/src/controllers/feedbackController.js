@@ -109,6 +109,8 @@ export const getMyFeedback = async (req, res, next) => {
   }
 };
 
+export { getAdminFeedbackList, getAdminFeedbackStats } from './adminFeedbackController.js';
+
 export default {
   submitComplaintFeedback,
   getComplaintFeedback,

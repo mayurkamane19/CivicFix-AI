@@ -217,8 +217,188 @@ export const getCitizenFeedback = async (citizenId) => {
   }));
 };
 
+/**
+ * Service: Retrieves paginated and filtered feedback records for administrative audit.
+ * Restricted to municipal administrators.
+ * @param {object} queryOptions
+ * @param {number|string} [queryOptions.page=1]
+ * @param {number|string} [queryOptions.limit=10]
+ * @param {number|string} [queryOptions.rating] - Optional rating filter (1-5)
+ * @param {string} [queryOptions.search=''] - Search by complaint ticket ID
+ * @returns {Promise<{feedbacks: Array<object>, pagination: object}>}
+ */
+export const getFeedbackForAdmin = async ({
+  page = 1,
+  limit = 10,
+  rating,
+  search = ''
+} = {}) => {
+  assertDatabaseConnected();
+
+  const pageNum = parseInt(page, 10);
+  if (isNaN(pageNum) || pageNum < 1) {
+    const error = new Error('Page must be a positive integer');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const limitNum = parseInt(limit, 10);
+  if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+    const error = new Error('Limit must be an integer between 1 and 100');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const filterQuery = {};
+
+  // Rating Filter (1-5)
+  if (rating !== undefined && rating !== null && rating !== '' && rating !== 'all') {
+    const ratingNum = Number(rating);
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      const error = new Error('Rating filter must be an integer between 1 and 5');
+      error.statusCode = 400;
+      throw error;
+    }
+    filterQuery.rating = ratingNum;
+  }
+
+  // Complaint ID Search
+  if (search && typeof search === 'string' && search.trim() !== '') {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    const matchedComplaints = await Complaint.find({
+      complaintId: searchRegex
+    }).select('_id');
+
+    filterQuery.complaint = { $in: matchedComplaints.map((c) => c._id) };
+  }
+
+  const skip = (pageNum - 1) * limitNum;
+
+  const [total, feedbacksRaw] = await Promise.all([
+    Feedback.countDocuments(filterQuery),
+    Feedback.find(filterQuery)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .populate('complaint', 'complaintId title category status location')
+      .populate('citizen', 'name')
+  ]);
+
+  const totalPages = Math.ceil(total / limitNum) || 1;
+
+  const feedbacks = feedbacksRaw.map((f) => ({
+    id: f._id ? f._id.toString() : undefined,
+    rating: f.rating,
+    comment: f.comment || '',
+    createdAt: f.createdAt,
+    complaintId: f.complaint?.complaintId || null,
+    complaintTitle: f.complaint?.title || null,
+    complaintCategory: f.complaint?.category || null,
+    complaintStatus: f.complaint?.status || null,
+    citizenName: f.citizen?.name || 'Verified Citizen'
+  }));
+
+  return {
+    feedbacks,
+    pagination: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+      hasNextPage: pageNum < totalPages,
+      hasPrevPage: pageNum > 1
+    }
+  };
+};
+
+/**
+ * Service: Calculates aggregate satisfaction statistics and rating distribution for admin dashboard.
+ * @returns {Promise<{totalFeedback: number, averageRating: number, ratingDistribution: object}>}
+ */
+export const getFeedbackStatsForAdmin = async () => {
+  assertDatabaseConnected();
+
+  let totalFeedback = 0;
+  let averageRating = 0;
+  const ratingDistribution = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0
+  };
+
+  // Primary: Fast MongoDB aggregation pipeline
+  if (typeof Feedback.aggregate === 'function') {
+    try {
+      const [statsAgg, distAgg] = await Promise.all([
+        Feedback.aggregate([
+          {
+            $group: {
+              _id: null,
+              totalFeedback: { $sum: 1 },
+              avgRating: { $avg: '$rating' }
+            }
+          }
+        ]),
+        Feedback.aggregate([
+          {
+            $group: {
+              _id: '$rating',
+              count: { $sum: 1 }
+            }
+          }
+        ])
+      ]);
+
+      if (Array.isArray(statsAgg) && statsAgg.length > 0) {
+        totalFeedback = statsAgg[0].totalFeedback || 0;
+        const rawAvg = statsAgg[0].avgRating || 0;
+        averageRating = totalFeedback > 0 ? Math.round(rawAvg * 10) / 10 : 0;
+      }
+
+      if (Array.isArray(distAgg)) {
+        for (const item of distAgg) {
+          if (item && item._id >= 1 && item._id <= 5) {
+            ratingDistribution[item._id] = item.count;
+          }
+        }
+      }
+
+      return {
+        totalFeedback,
+        averageRating,
+        ratingDistribution
+      };
+    } catch {
+      // In-memory or testing mock fallback
+    }
+  }
+
+  // Fallback if aggregate is not supported by mock environment
+  const allFeedbacks = await Feedback.find({});
+  totalFeedback = allFeedbacks.length;
+  if (totalFeedback > 0) {
+    const sum = allFeedbacks.reduce((acc, f) => acc + (f.rating || 0), 0);
+    averageRating = Math.round((sum / totalFeedback) * 10) / 10;
+    for (const f of allFeedbacks) {
+      if (f.rating >= 1 && f.rating <= 5) {
+        ratingDistribution[f.rating] = (ratingDistribution[f.rating] || 0) + 1;
+      }
+    }
+  }
+
+  return {
+    totalFeedback,
+    averageRating,
+    ratingDistribution
+  };
+};
+
 export default {
   submitFeedback,
   getFeedbackByComplaint,
-  getCitizenFeedback
+  getCitizenFeedback,
+  getFeedbackForAdmin,
+  getFeedbackStatsForAdmin
 };
