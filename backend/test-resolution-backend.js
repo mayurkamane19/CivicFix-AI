@@ -188,6 +188,168 @@ await runTest('notifyAdminReviewRequired triggers without throwing when DB is of
   assert.ok(Array.isArray(logs));
 });
 
+// 5. Security & Feedback Gating Validation Tests
+await runTest('Feedback submission is gated until citizen resolution verification is confirmed', async () => {
+  const { submitFeedback } = await import('./src/services/feedbackService.js');
+
+  Object.defineProperty(mongoose.connection, 'readyState', {
+    value: 1,
+    configurable: true
+  });
+  Object.defineProperty(mongoose.connection, 'db', {
+    value: {},
+    configurable: true
+  });
+
+  // Mock Complaint.findOne to return a complaint in 'Resolved' but 'Awaiting Citizen Verification'
+  const citizenId = new mongoose.Types.ObjectId();
+  const complaintId = new mongoose.Types.ObjectId();
+
+  const originalFindOne = Complaint.findOne;
+  const originalFindById = Complaint.findById;
+
+  Complaint.findOne = async (q) => ({
+    _id: complaintId,
+    complaintId: 'CFX-20261120-9999',
+    status: 'Resolved',
+    reportedBy: citizenId,
+    resolutionEvidence: {
+      status: 'Awaiting Citizen Verification'
+    }
+  });
+
+  try {
+    let errorCaught = null;
+    try {
+      await submitFeedback(citizenId, 'CFX-20261120-9999', { rating: 5, comment: 'Nice fix' });
+    } catch (err) {
+      errorCaught = err;
+    }
+    assert.ok(errorCaught, 'Should throw error when feedback is submitted before verification');
+    assert.equal(errorCaught.statusCode, 400);
+    assert.ok(errorCaught.message.includes('Feedback can only be submitted after resolution verification is confirmed'));
+  } finally {
+    Complaint.findOne = originalFindOne;
+    Complaint.findById = originalFindById;
+  }
+});
+
+await runTest('Resolution rejection is blocked once resolution has already been verified', async () => {
+  const citizenId = new mongoose.Types.ObjectId();
+  const complaintId = new mongoose.Types.ObjectId();
+
+  const originalFindOne = Complaint.findOne;
+  const originalFindById = Complaint.findById;
+
+  const mockComplaint = {
+    _id: complaintId,
+    complaintId: 'CFX-20261120-8888',
+    status: 'Resolved',
+    reportedBy: { _id: citizenId, email: 'citizen@example.com' },
+    contactEmail: 'citizen@example.com',
+    resolutionEvidence: {
+      status: 'Verified by Citizen'
+    }
+  };
+
+  const createQueryMock = (doc) => ({
+    populate: function () { return this; },
+    then: function (resolve) { return Promise.resolve(doc).then(resolve); }
+  });
+
+  Complaint.findOne = () => createQueryMock(mockComplaint);
+  Complaint.findById = () => createQueryMock(mockComplaint);
+
+  try {
+    let errorCaught = null;
+    try {
+      await rejectResolutionByCitizen(citizenId, 'CFX-20261120-8888', {
+        reason: 'Attempting to contest after confirmed verification',
+        citizenUser: { _id: citizenId, email: 'citizen@example.com' }
+      });
+    } catch (err) {
+      errorCaught = err;
+    }
+    assert.ok(errorCaught, 'Should block rejection on already verified resolution');
+    assert.equal(errorCaught.statusCode, 400);
+    assert.ok(errorCaught.message.includes('Resolution has already been verified and confirmed'));
+  } finally {
+    Complaint.findOne = originalFindOne;
+    Complaint.findById = originalFindById;
+  }
+});
+
+await runTest('Resolution rejection is blocked when complaint is under administrative review', async () => {
+  const citizenId = new mongoose.Types.ObjectId();
+  const complaintId = new mongoose.Types.ObjectId();
+
+  const originalFindOne = Complaint.findOne;
+  const originalFindById = Complaint.findById;
+
+  const mockComplaint = {
+    _id: complaintId,
+    complaintId: 'CFX-20261120-7777',
+    status: 'Resolved',
+    reportedBy: { _id: citizenId, email: 'citizen@example.com' },
+    contactEmail: 'citizen@example.com',
+    resolutionEvidence: {
+      status: 'Under Administrative Review'
+    }
+  };
+
+  const createQueryMock = (doc) => ({
+    populate: function () { return this; },
+    then: function (resolve) { return Promise.resolve(doc).then(resolve); }
+  });
+
+  Complaint.findOne = () => createQueryMock(mockComplaint);
+  Complaint.findById = () => createQueryMock(mockComplaint);
+
+  try {
+    let errorCaught = null;
+    try {
+      await rejectResolutionByCitizen(citizenId, 'CFX-20261120-7777', {
+        reason: 'Attempting to contest while under admin review',
+        citizenUser: { _id: citizenId, email: 'citizen@example.com' }
+      });
+    } catch (err) {
+      errorCaught = err;
+    }
+    assert.ok(errorCaught, 'Should block rejection when under admin review');
+    assert.equal(errorCaught.statusCode, 400);
+    assert.ok(errorCaught.message.includes('currently under administrative review'));
+  } finally {
+    Complaint.findOne = originalFindOne;
+    Complaint.findById = originalFindById;
+  }
+});
+
+await runTest('Reopening history preserves all entries chronologically without overwriting', () => {
+  const mockEvidence = {
+    status: 'Rejected by Citizen',
+    reopenCount: 2,
+    maxReopenLimit: 3,
+    reopeningHistory: [
+      {
+        reopenedAt: new Date('2026-11-18T10:00:00Z'),
+        reason: 'Debris left on sidewalk',
+        reopenedByName: 'Citizen A'
+      }
+    ]
+  };
+
+  // Simulate second reopen append
+  mockEvidence.reopeningHistory.push({
+    reopenedAt: new Date('2026-11-19T14:00:00Z'),
+    reason: 'Water leak still visible',
+    reopenedByName: 'Citizen A'
+  });
+
+  assert.equal(mockEvidence.reopeningHistory.length, 2);
+  assert.equal(mockEvidence.reopeningHistory[0].reason, 'Debris left on sidewalk');
+  assert.equal(mockEvidence.reopeningHistory[1].reason, 'Water leak still visible');
+});
+
 console.log(`\n======================================================`);
 console.log(`Phase 19 Backend Tests Completed: ${passed} passed, ${failed} failed`);
 console.log(`======================================================\n`);

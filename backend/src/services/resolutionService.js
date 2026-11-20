@@ -544,6 +544,13 @@ export const submitOfficerResolution = async (
     throw error;
   }
 
+  // Prevent duplicate submission on already finalized resolution
+  if (complaint.status === 'Resolved' && complaint.resolutionEvidence?.status === 'Verified by Citizen') {
+    const error = new Error('Complaint resolution has already been verified and confirmed.');
+    error.statusCode = 400;
+    throw error;
+  }
+
   // Handle new uploads if provided in same call
   let newAfterImages = [];
   let newBeforeImages = [];
@@ -788,6 +795,19 @@ export const rejectResolutionByCitizen = async (
 
   if (complaint.status !== 'Resolved') {
     const error = new Error(`Complaint is currently '${complaint.status}' and cannot be contested.`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Prevent duplicate rejection after verified or while under administrative review
+  if (complaint.resolutionEvidence?.status === 'Verified by Citizen') {
+    const error = new Error('Resolution has already been verified and confirmed. It cannot be contested.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (complaint.resolutionEvidence?.status === 'Under Administrative Review') {
+    const error = new Error('This complaint is currently under administrative review and cannot be contested by citizen.');
     error.statusCode = 400;
     throw error;
   }

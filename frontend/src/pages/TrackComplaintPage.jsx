@@ -865,10 +865,11 @@ export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, 
                 onStatusUpdated={() => fetchComplaint(complaintData.complaintId)}
               />
 
-              {/* Citizen Resolution Feedback (Active when status is Resolved) */}
+              {/* Citizen Resolution Feedback (Active when status is Resolved and verified) */}
               <FeedbackForm
                 complaintId={complaintData.complaintId}
                 status={complaintData.status}
+                resolutionStatus={complaintData.resolutionEvidence?.status}
               />
             </div>
           </div>

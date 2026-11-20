@@ -65,6 +65,20 @@ export const submitFeedback = async (citizenId, complaintIdentifier, { rating, c
     throw error;
   }
 
+  // 2b. Resolution Verification Guard: Gated until citizen has confirmed resolution
+  if (
+    complaint.resolutionEvidence &&
+    complaint.resolutionEvidence.status &&
+    complaint.resolutionEvidence.status !== 'Not Submitted' &&
+    complaint.resolutionEvidence.status !== 'Verified by Citizen'
+  ) {
+    const error = new Error(
+      `Feedback can only be submitted after resolution verification is confirmed. Current verification status: '${complaint.resolutionEvidence.status}'`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
   // 3. Authorization: Only the citizen who reported the complaint can submit feedback
   if (!complaint.reportedBy) {
     const error = new Error('Feedback cannot be submitted for guest complaints without registered ownership');

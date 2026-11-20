@@ -13,7 +13,7 @@ const RATING_LABELS = {
   5: 'Excellent'
 };
 
-export const FeedbackForm = ({ complaintId, status, onFeedbackSubmitted }) => {
+export const FeedbackForm = ({ complaintId, status, resolutionStatus = null, onFeedbackSubmitted }) => {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -25,6 +25,9 @@ export const FeedbackForm = ({ complaintId, status, onFeedbackSubmitted }) => {
 
   const token = getStoredToken();
   const isResolved = status === 'Resolved';
+  const isVerificationPending = resolutionStatus &&
+    resolutionStatus !== 'Verified by Citizen' &&
+    resolutionStatus !== 'Not Submitted';
 
   // Fetch any previously submitted feedback for this complaint
   const fetchExistingFeedback = useCallback(async () => {
@@ -47,8 +50,8 @@ export const FeedbackForm = ({ complaintId, status, onFeedbackSubmitted }) => {
     fetchExistingFeedback();
   }, [fetchExistingFeedback]);
 
-  // Guard: Feedback form is strictly hidden for unresolved complaints
-  if (!isResolved) {
+  // Guard: Feedback form is strictly hidden for unresolved complaints or unverified resolutions (unless feedback already exists)
+  if (!isResolved || (isVerificationPending && !existingFeedback)) {
     return null;
   }
 
