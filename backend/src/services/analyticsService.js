@@ -1255,6 +1255,24 @@ export const exportAnalyticsCsv = async (queryParams = {}) => {
     csvRows.push(['1 - 3 Days', data.durationBrackets.oneToThreeDays.count, `${data.durationBrackets.oneToThreeDays.percentage}%`]);
     csvRows.push(['3 - 7 Days', data.durationBrackets.threeToSevenDays.count, `${data.durationBrackets.threeToSevenDays.percentage}%`]);
     csvRows.push(['> 7 Days', data.durationBrackets.overSevenDays.count, `${data.durationBrackets.overSevenDays.percentage}%`]);
+  } else if (exportType === 'sla') {
+    const { getSlaPerformanceOverview } = await import('./slaService.js');
+    const slaOverview = await getSlaPerformanceOverview(queryParams);
+    filename = `civicfix-analytics-sla-${timestamp}.csv`;
+    csvRows.push(['SLA Metric', 'Value']);
+    csvRows.push(['Total Active Monitored', slaOverview.summary.activeMonitored]);
+    csvRows.push(['Within SLA', slaOverview.summary.withinSla]);
+    csvRows.push(['Approaching Deadline', slaOverview.summary.approachingDeadline]);
+    csvRows.push(['Overdue', slaOverview.summary.overdue]);
+    csvRows.push(['Resolved Within SLA', slaOverview.summary.resolvedWithinSla]);
+    csvRows.push(['Resolved After SLA', slaOverview.summary.resolvedAfterSla]);
+    csvRows.push(['SLA Compliance Rate (%)', `${slaOverview.summary.complianceRate}%`]);
+    csvRows.push(['Overdue Rate (%)', `${slaOverview.summary.overdueRate}%`]);
+    csvRows.push([]);
+    csvRows.push(['Escalation Level', 'Count']);
+    csvRows.push(['Level 1 (Supervisor Warning)', slaOverview.escalations.level1]);
+    csvRows.push(['Level 2 (Department Head SLA Breach)', slaOverview.escalations.level2]);
+    csvRows.push(['Level 3 (Municipal Admin Critical Escalation)', slaOverview.escalations.level3]);
   } else {
     // Default: 'overview'
     const data = await getAnalyticsOverview(queryParams);

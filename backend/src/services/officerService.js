@@ -3,6 +3,7 @@ import { Complaint } from '../models/Complaint.js';
 import { User } from '../models/User.js';
 import { getDatabaseStatus } from '../config/db.js';
 import { notifyStatusUpdated } from './notificationService.js';
+import { handleComplaintStatusChangeSla } from './slaService.js';
 
 export const OFFICER_ALLOWED_STATUSES = ['In Progress', 'Resolved'];
 
@@ -288,6 +289,9 @@ export const updateOfficerComplaintStatus = async (
   }
   complaint.statusHistory.push(historyEntry);
   complaint.status = validStatus;
+
+  // Synchronize SLA tracking state with resolution or reopening
+  handleComplaintStatusChangeSla(complaint, validStatus);
 
   await complaint.save();
 

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import app from './app.js';
 import { config } from './config/env.js';
 import { connectDB } from './config/db.js';
+import { startSlaScheduler, stopSlaScheduler } from './services/slaMonitoringService.js';
 
 const PORT = config.port;
 
@@ -17,6 +18,7 @@ const server = app.listen(PORT, async () => {
   // Attempt database connection without crashing the server if it fails
   try {
     await connectDB();
+    startSlaScheduler({ intervalMs: Number(process.env.SLA_MONITOR_INTERVAL_MS) || 60000 });
   } catch (error) {
     console.error(`[Server] Non-fatal database initialization error: ${error.message}`);
   }
@@ -25,6 +27,7 @@ const server = app.listen(PORT, async () => {
 // Graceful shutdown handling
 const shutdown = async (signal) => {
   console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
+  stopSlaScheduler();
 
   // Close MongoDB connection if connected
   if (mongoose.connection.readyState !== 0) {

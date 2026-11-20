@@ -29,6 +29,16 @@ import {
   getAdminFeedbackList,
   getAdminFeedbackStats
 } from '../controllers/adminFeedbackController.js';
+import {
+  getAdminSlaConfig,
+  updateAdminSlaConfig,
+  getAdminSlaOverview,
+  getAdminOverdueComplaints,
+  getAdminEscalationLogs,
+  getComplaintEscalationHistory,
+  manualEscalateController,
+  triggerSlaEvaluation
+} from '../controllers/slaController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -74,5 +84,17 @@ router.get('/analytics/export', exportCsvController);
 // Citizen Feedback Management & Analytics Endpoints (Admin Only)
 router.get('/feedback/stats', getAdminFeedbackStats);
 router.get('/feedback', getAdminFeedbackList);
+
+// SLA Configuration & Monitoring Endpoints (Admin Only)
+router.get('/sla/config', getAdminSlaConfig);
+router.put('/sla/config', updateAdminSlaConfig);
+router.get('/sla/overview', getAdminSlaOverview);
+router.get('/sla/overdue', getAdminOverdueComplaints);
+router.post('/sla/evaluate', triggerSlaEvaluation);
+
+// Multi-Level Escalation Management Endpoints (Admin Only)
+router.get('/escalations', getAdminEscalationLogs);
+router.get('/escalations/:complaintId', getComplaintEscalationHistory);
+router.post('/escalations/:complaintId/manual', manualEscalateController);
 
 export default router;

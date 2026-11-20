@@ -7,6 +7,10 @@ import {
   getOfficerMap
 } from '../controllers/officerController.js';
 import { getOfficerOverviewController } from '../controllers/analyticsController.js';
+import {
+  getOfficerSlaOverview,
+  getOfficerEscalations
+} from '../controllers/slaController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -32,5 +36,9 @@ router.patch('/complaints/:complaintId/status', updateStatus);
 
 // GET /api/officer/analytics/overview (Strictly scoped to authenticated officer)
 router.get('/analytics/overview', getOfficerOverviewController);
+
+// SLA & Escalations Endpoints (Strictly scoped to authenticated officer)
+router.get('/sla', getOfficerSlaOverview);
+router.get('/escalations', getOfficerEscalations);
 
 export default router;

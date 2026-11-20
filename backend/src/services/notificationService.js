@@ -7,7 +7,10 @@ import {
   renderComplaintStatusUpdateEmail,
   renderDepartmentAssignmentEmail,
   renderOfficerAssignmentEmail,
-  renderComplaintResolutionEmail
+  renderComplaintResolutionEmail,
+  renderSlaWarningEmail,
+  renderSlaBreachEmail,
+  renderSlaEscalationEmail
 } from './emailTemplates.js';
 import { sendMailAsync } from './emailService.js';
 
@@ -28,6 +31,15 @@ export const buildTrackingUrl = (complaintId) => {
 export const buildOfficerPortalUrl = () => {
   const base = (config.frontendUrl || 'http://localhost:5173').replace(/\/+$/, '');
   return `${base}/#officer`;
+};
+
+/**
+ * Builds the municipal administrator portal URL
+ * @returns {string}
+ */
+export const buildAdminPortalUrl = () => {
+  const base = (config.frontendUrl || 'http://localhost:5173').replace(/\/+$/, '');
+  return `${base}/#admin`;
 };
 
 /**
@@ -480,14 +492,248 @@ export const getAdminNotificationLogs = async ({
   };
 };
 
+/**
+ * Notifies assigned officer and supervisors when a complaint SLA deadline is approaching
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {number} params.remainingHours
+ * @returns {Promise<Array<object>>} Queued notification records
+ */
+export const notifySlaWarning = async ({ complaint, remainingHours }) => {
+  if (!complaint || !complaint.complaintId) return [];
+
+  const recipientList = [];
+
+  // 1. Officer recipient
+  if (complaint.assignedOfficer?.email) {
+    recipientList.push({
+      email: complaint.assignedOfficer.email,
+      user: complaint.assignedOfficer._id,
+      role: 'officer'
+    });
+  }
+
+  // Fallback to active admin if no officer assigned
+  if (recipientList.length === 0) {
+    const admin = await User.findOne({ role: 'admin', isActive: true });
+    if (admin && admin.email) {
+      recipientList.push({
+        email: admin.email,
+        user: admin._id,
+        role: 'admin'
+      });
+    }
+  }
+
+  const portalUrl = buildOfficerPortalUrl();
+  const emailContent = renderSlaWarningEmail({ complaint, remainingHours, portalUrl });
+  const results = [];
+
+  for (const r of recipientList) {
+    try {
+      const idempotencyKey = `SLA_WARN_${complaint.complaintId}_L1_${r.email}`;
+      const log = await queueNotification({
+        eventType: 'SLA_APPROACHING_DEADLINE',
+        complaint,
+        recipientEmail: r.email,
+        recipientUser: r.user,
+        recipientRole: r.role,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+        idempotencyKey,
+        metadata: { remainingHours, escalationLevel: 1 }
+      });
+      results.push(log);
+    } catch (err) {
+      console.warn(`[Notification] Warning dispatch skipped for ${r.email}:`, err.message);
+    }
+  }
+
+  return results;
+};
+
+/**
+ * Notifies department leadership and officers when an SLA deadline is breached
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {number} params.overdueHours
+ * @returns {Promise<Array<object>>} Queued notification records
+ */
+export const notifySlaBreach = async ({ complaint, overdueHours }) => {
+  if (!complaint || !complaint.complaintId) return [];
+
+  const recipientList = [];
+
+  // 1. Assigned officer
+  if (complaint.assignedOfficer?.email) {
+    recipientList.push({
+      email: complaint.assignedOfficer.email,
+      user: complaint.assignedOfficer._id,
+      role: 'officer'
+    });
+  }
+
+  // 2. Administrators
+  const admins = await User.find({ role: 'admin', isActive: true }).limit(2);
+  for (const admin of admins) {
+    if (admin.email && !recipientList.some((x) => x.email === admin.email)) {
+      recipientList.push({
+        email: admin.email,
+        user: admin._id,
+        role: 'admin'
+      });
+    }
+  }
+
+  const portalUrl = buildAdminPortalUrl();
+  const emailContent = renderSlaBreachEmail({ complaint, overdueHours, portalUrl });
+  const results = [];
+
+  for (const r of recipientList) {
+    try {
+      const idempotencyKey = `SLA_BREACH_${complaint.complaintId}_L2_${r.email}`;
+      const log = await queueNotification({
+        eventType: 'SLA_BREACH',
+        complaint,
+        recipientEmail: r.email,
+        recipientUser: r.user,
+        recipientRole: r.role,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+        idempotencyKey,
+        metadata: { overdueHours, escalationLevel: 2 }
+      });
+      results.push(log);
+    } catch (err) {
+      console.warn(`[Notification] Breach dispatch skipped for ${r.email}:`, err.message);
+    }
+  }
+
+  return results;
+};
+
+/**
+ * Notifies municipal administrators when Level 3 critical escalation occurs
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {number} params.escalationLevel
+ * @param {string} params.reason
+ * @returns {Promise<Array<object>>} Queued notification records
+ */
+export const notifySlaEscalation = async ({ complaint, escalationLevel, reason }) => {
+  if (!complaint || !complaint.complaintId) return [];
+
+  const admins = await User.find({ role: 'admin', isActive: true }).limit(5);
+  const portalUrl = buildAdminPortalUrl();
+  const emailContent = renderSlaEscalationEmail({ complaint, escalationLevel, reason, portalUrl });
+  const results = [];
+
+  for (const admin of admins) {
+    if (!admin.email) continue;
+    try {
+      const idempotencyKey = `SLA_ESC_${complaint.complaintId}_L${escalationLevel}_${admin.email}`;
+      const log = await queueNotification({
+        eventType: `SLA_ESCALATION_LEVEL_${escalationLevel}`,
+        complaint,
+        recipientEmail: admin.email,
+        recipientUser: admin._id,
+        recipientRole: 'admin',
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+        idempotencyKey,
+        metadata: { escalationLevel, reason }
+      });
+      results.push(log);
+    } catch (err) {
+      console.warn(`[Notification] Escalation dispatch skipped for ${admin.email}:`, err.message);
+    }
+  }
+
+  return results;
+};
+
+/**
+ * Notifies responsible officers and admins on manual administrative escalation
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {number} params.escalationLevel
+ * @param {string} params.reason
+ * @param {object} params.adminUser
+ * @returns {Promise<Array<object>>}
+ */
+export const notifyManualEscalation = async ({ complaint, escalationLevel, reason, adminUser }) => {
+  if (!complaint || !complaint.complaintId) return [];
+
+  const recipientList = [];
+
+  if (complaint.assignedOfficer?.email) {
+    recipientList.push({
+      email: complaint.assignedOfficer.email,
+      user: complaint.assignedOfficer._id,
+      role: 'officer'
+    });
+  }
+
+  const admins = await User.find({ role: 'admin', isActive: true }).limit(3);
+  for (const a of admins) {
+    if (a.email && !recipientList.some((x) => x.email === a.email)) {
+      recipientList.push({
+        email: a.email,
+        user: a._id,
+        role: 'admin'
+      });
+    }
+  }
+
+  const portalUrl = buildAdminPortalUrl();
+  const emailContent = renderSlaEscalationEmail({
+    complaint,
+    escalationLevel,
+    reason: `Manual Escalation: ${reason}`,
+    portalUrl
+  });
+  const results = [];
+
+  for (const r of recipientList) {
+    try {
+      const idempotencyKey = `MANUAL_ESC_${complaint.complaintId}_${Date.now()}_${r.email}`;
+      const log = await queueNotification({
+        eventType: 'MANUAL_ESCALATION',
+        complaint,
+        recipientEmail: r.email,
+        recipientUser: r.user,
+        recipientRole: r.role,
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+        idempotencyKey,
+        metadata: { escalationLevel, reason, escalatedBy: adminUser?.name || 'Administrator' }
+      });
+      results.push(log);
+    } catch (err) {
+      console.warn(`[Notification] Manual escalation dispatch skipped for ${r.email}:`, err.message);
+    }
+  }
+
+  return results;
+};
+
 export default {
   buildTrackingUrl,
   buildOfficerPortalUrl,
+  buildAdminPortalUrl,
   queueNotification,
   processNotificationAsync,
   notifyComplaintSubmitted,
   notifyStatusUpdated,
   notifyDepartmentAssigned,
   notifyOfficerAssigned,
+  notifySlaWarning,
+  notifySlaBreach,
+  notifySlaEscalation,
+  notifyManualEscalation,
   getAdminNotificationLogs
 };

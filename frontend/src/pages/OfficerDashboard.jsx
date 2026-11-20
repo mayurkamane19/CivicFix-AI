@@ -5,7 +5,8 @@ import {
   getOfficerComplaintsApi,
   getOfficerComplaintDetailsApi,
   updateOfficerComplaintStatusApi,
-  getOfficerAnalyticsOverviewApi
+  getOfficerAnalyticsOverviewApi,
+  getOfficerSlaOverviewApi
 } from '../services/api';
 
 /**
@@ -53,16 +54,23 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
 
   // Feedback State
   const [feedback, setFeedback] = useState(null);
+  const [slaMetrics, setSlaMetrics] = useState(null);
 
   // 1. Fetch Officer Dashboard Stats
   const fetchStats = useCallback(async () => {
     if (!isOfficer) return;
     setStatsLoading(true);
-    const res = await getOfficerStatsApi();
+    const [res, slaRes] = await Promise.all([
+      getOfficerStatsApi(),
+      getOfficerSlaOverviewApi()
+    ]);
     setStatsLoading(false);
 
     if (res.success && res.data) {
       setStats(res.data);
+    }
+    if (slaRes.success && slaRes.data) {
+      setSlaMetrics(slaRes.data.metrics);
     }
   }, [isOfficer]);
 
@@ -291,6 +299,14 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
       {/* Main Body */}
       <main className="admin-main-container">
         {/* KPI Metric Cards */}
+        {slaMetrics && (slaMetrics.approaching > 0 || slaMetrics.overdue > 0) && (
+          <div className="sla-officer-alert alert-box alert-error" style={{ marginBottom: '1.25rem' }}>
+            <span className="sla-alert-icon">⚠️</span>
+            <div className="sla-alert-content">
+              <strong>SLA Attention Required:</strong> You have {slaMetrics.overdue} overdue task(s) and {slaMetrics.approaching} task(s) approaching resolution deadline.
+            </div>
+          </div>
+        )}
         <section className="stats-cards-grid" style={{ marginBottom: '1.5rem' }}>
           <div
             className={`stat-card ${statusFilter === 'all' ? 'stat-card-active' : ''}`}
@@ -559,6 +575,7 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
                         <th>Ticket ID</th>
                         <th>Issue Title</th>
                         <th>Category</th>
+                        <th>SLA Status</th>
                         <th>Location / Address</th>
                         <th>Assigned Date</th>
                         <th>Status</th>
@@ -576,6 +593,32 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
                           </td>
                           <td>
                             <span className="category-tag">{c.category}</span>
+                          </td>
+                          <td>
+                            {c.sla ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span className={`sla-status-pill pill-${(c.sla.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
+                                  {c.sla.status}
+                                </span>
+                                {c.sla.status === 'Overdue' && (
+                                  <span style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600 }}>
+                                    +{c.sla.overdueHours}h overdue
+                                  </span>
+                                )}
+                                {c.sla.status === 'Approaching Deadline' && (
+                                  <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 600 }}>
+                                    {c.sla.remainingHours}h left
+                                  </span>
+                                )}
+                                {c.sla.isEscalated && (
+                                  <span className={`esc-level-badge level-${c.sla.currentEscalationLevel}`}>
+                                    L{c.sla.currentEscalationLevel} Escalated
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>—</span>
+                            )}
                           </td>
                           <td className="cell-address">
                             <span title={c.address || c.location?.address}>
@@ -658,6 +701,38 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
 
             <div className="modal-body details-scroll-body">
               {statusError && <div className="alert alert-error">{statusError}</div>}
+
+              {/* SLA Target Card */}
+              {selectedComplaint.sla && (
+                <div className="details-card" style={{ marginBottom: '1.25rem', backgroundColor: '#f8fafc' }}>
+                  <h3 className="details-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>⏱️ Resolution SLA &amp; Deadlines</span>
+                    <span className={`sla-status-pill pill-${(selectedComplaint.sla.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
+                      {selectedComplaint.sla.status}
+                    </span>
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Priority Level</span>
+                      <strong>{selectedComplaint.sla.priority || 'Medium'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Resolution Deadline</span>
+                      <strong>{selectedComplaint.sla.deadline ? new Date(selectedComplaint.sla.deadline).toLocaleString() : 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Target Window</span>
+                      <span>{selectedComplaint.sla.targetResolutionHours || 72} Hours</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>Escalation Status</span>
+                      <strong style={{ color: selectedComplaint.sla.currentEscalationLevel > 0 ? '#b91c1c' : '#1e293b' }}>
+                        Level {selectedComplaint.sla.currentEscalationLevel || 0} {selectedComplaint.sla.isEscalated ? '(Escalated)' : ''}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Status Update Form Card */}
               <div

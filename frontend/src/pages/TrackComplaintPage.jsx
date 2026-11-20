@@ -132,6 +132,22 @@ export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, 
     }
   };
 
+  const getSlaPillClass = (slaStatus) => {
+    switch (slaStatus) {
+      case 'Resolved Within SLA':
+        return 'pill-resolved-within-sla';
+      case 'Resolved After SLA':
+        return 'pill-resolved-after-sla';
+      case 'Approaching Deadline':
+        return 'pill-approaching-deadline';
+      case 'Overdue':
+        return 'pill-overdue';
+      case 'Within SLA':
+      default:
+        return 'pill-within-sla';
+    }
+  };
+
   return (
     <div className="auth-page-container">
       <div className="auth-card track-card">
@@ -272,7 +288,7 @@ export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, 
                       )}
                       {complaintData.assignedAt && (
                         <span style={{ fontSize: '0.75rem', color: 'var(--slate-400)' }}>
-                          Dispatched: {formatDate(complaintData.assignedAt)}
+                          Dispatched: {formattedDate(complaintData.assignedAt)}
                         </span>
                       )}
                     </div>
@@ -283,6 +299,78 @@ export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, 
                   )}
                 </div>
               </div>
+
+              {/* SLA Resolution Guarantee & Target (Phase 17) */}
+              {complaintData.sla && (
+                <div className="track-detail-item track-sla-item">
+                  <div className="track-ai-header">
+                    <div className="ai-badge-row">
+                      <span className="sla-badge-icon">⏱️</span>
+                      <span className="track-detail-label" style={{ margin: 0 }}>
+                        Resolution Target &amp; Service Guarantee
+                      </span>
+                    </div>
+                    <span className={`sla-status-pill ${getSlaPillClass(complaintData.sla.citizenSafeStatus || complaintData.sla.status)}`}>
+                      {complaintData.sla.citizenSafeStatus || complaintData.sla.status}
+                    </span>
+                  </div>
+
+                  <div className="track-sla-card">
+                    <div className="track-sla-grid">
+                      <div className="sla-info-block">
+                        <span className="sla-info-label">Target Resolution Window</span>
+                        <span className="sla-info-value">
+                          Within {complaintData.sla.targetResolutionHours} Hours ({complaintData.sla.priority} Priority)
+                        </span>
+                      </div>
+                      <div className="sla-info-block">
+                        <span className="sla-info-label">Target Resolution Deadline</span>
+                        <span className="sla-info-value font-mono">
+                          {formattedDate(complaintData.sla.deadline)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress / Urgency reassurance */}
+                    {complaintData.sla.isOverdue || complaintData.sla.status === 'Overdue' ? (
+                      <div className="sla-reassurance-box overdue">
+                        <span className="sla-reassurance-icon">⚠️</span>
+                        <div>
+                          <strong>High Priority Attention:</strong> This issue has exceeded standard turnaround time and is actively being monitored and escalated by municipal management for expedited resolution.
+                        </div>
+                      </div>
+                    ) : complaintData.sla.status === 'Approaching Deadline' ? (
+                      <div className="sla-reassurance-box warning">
+                        <span className="sla-reassurance-icon">⏳</span>
+                        <div>
+                          <strong>Active Monitoring:</strong> This issue is nearing its target resolution deadline. Field teams have been alerted to finalize repairs.
+                        </div>
+                      </div>
+                    ) : complaintData.sla.status === 'Resolved Within SLA' ? (
+                      <div className="sla-reassurance-box resolved-success">
+                        <span className="sla-reassurance-icon">✅</span>
+                        <div>
+                          <strong>Service Guarantee Met:</strong> This issue was successfully resolved within the municipal service window.
+                        </div>
+                      </div>
+                    ) : complaintData.sla.status === 'Resolved After SLA' ? (
+                      <div className="sla-reassurance-box resolved-late">
+                        <span className="sla-reassurance-icon">ℹ️</span>
+                        <div>
+                          <strong>Resolved:</strong> Work completed. Thank you for your patience while municipal teams handled this report.
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sla-reassurance-box normal">
+                        <span className="sla-reassurance-icon">🛡️</span>
+                        <div>
+                          <strong>CivicFix Service Commitment:</strong> Tracked under municipal SLA. Assigned teams are dispatched to meet or exceed target resolution times.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="track-detail-item">
                 <span className="track-detail-label">Location Address</span>

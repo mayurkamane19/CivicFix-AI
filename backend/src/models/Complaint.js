@@ -383,7 +383,79 @@ const complaintSchema = new mongoose.Schema(
           default: Date.now
         }
       }
-    ]
+    ],
+    sla: {
+      status: {
+        type: String,
+        enum: {
+          values: [
+            'Not Started',
+            'Within SLA',
+            'Approaching Deadline',
+            'Overdue',
+            'Resolved Within SLA',
+            'Resolved After SLA'
+          ],
+          message: '{VALUE} is not a valid SLA status'
+        },
+        default: 'Not Started'
+      },
+      priority: {
+        type: String,
+        enum: ['Low', 'Medium', 'High', 'Critical'],
+        default: 'Medium'
+      },
+      targetResolutionHours: {
+        type: Number,
+        default: 72
+      },
+      startTime: {
+        type: Date,
+        default: null
+      },
+      deadline: {
+        type: Date,
+        default: null
+      },
+      remainingHours: {
+        type: Number,
+        default: null
+      },
+      overdueHours: {
+        type: Number,
+        default: 0
+      },
+      resolvedAt: {
+        type: Date,
+        default: null
+      },
+      currentEscalationLevel: {
+        type: Number,
+        enum: [0, 1, 2, 3],
+        default: 0
+      },
+      lastEscalatedAt: {
+        type: Date,
+        default: null
+      },
+      nextEscalationThreshold: {
+        type: Date,
+        default: null
+      },
+      isEscalated: {
+        type: Boolean,
+        default: false
+      },
+      monitoringActive: {
+        type: Boolean,
+        default: true
+      },
+      citizenSafeStatus: {
+        type: String,
+        trim: true,
+        default: 'Within standard resolution window'
+      }
+    }
   },
   {
     timestamps: true
@@ -404,6 +476,10 @@ complaintSchema.index({ status: 1, 'location.latitude': 1, 'location.longitude':
 complaintSchema.index({ createdAt: -1 });
 complaintSchema.index({ createdAt: -1, status: 1 });
 complaintSchema.index({ createdAt: -1, category: 1 });
+complaintSchema.index({ 'sla.status': 1 });
+complaintSchema.index({ 'sla.deadline': 1 });
+complaintSchema.index({ 'sla.currentEscalationLevel': 1 });
+complaintSchema.index({ 'sla.monitoringActive': 1, 'sla.deadline': 1 });
 
 /**
  * Returns safe public representation of complaint (excluding internal IDs)
@@ -491,6 +567,31 @@ complaintSchema.methods.toPublicJSON = function () {
       assignedAt: a.assignedAt
     })),
     emailNotificationsEnabled: this.emailNotificationsEnabled === true,
+    sla: this.sla
+      ? {
+          status: this.sla.status || 'Not Started',
+          priority: this.sla.priority || 'Medium',
+          targetResolutionHours: this.sla.targetResolutionHours || 72,
+          startTime: this.sla.startTime || null,
+          deadline: this.sla.deadline || null,
+          remainingHours: this.sla.remainingHours !== null && this.sla.remainingHours !== undefined
+            ? Math.round(this.sla.remainingHours * 10) / 10
+            : null,
+          isOverdue: this.sla.status === 'Overdue' || this.sla.status === 'Resolved After SLA',
+          isEscalated: Boolean(this.sla.isEscalated),
+          citizenSafeStatus: this.sla.citizenSafeStatus || (
+            this.sla.status === 'Resolved Within SLA'
+              ? 'Resolved within standard service window'
+              : this.sla.status === 'Resolved After SLA'
+              ? 'Resolved'
+              : this.sla.status === 'Overdue' || this.sla.isEscalated
+              ? 'Priority Municipal Review'
+              : this.sla.status === 'Approaching Deadline'
+              ? 'Expedited Resolution Underway'
+              : 'Within standard resolution window'
+          )
+        }
+      : null,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };
@@ -505,6 +606,23 @@ complaintSchema.methods.toAdminJSON = function () {
   return {
     ...publicData,
     citizenEmail: this.citizenEmail || null,
+    sla: this.sla
+      ? {
+          status: this.sla.status || 'Not Started',
+          priority: this.sla.priority || 'Medium',
+          targetResolutionHours: this.sla.targetResolutionHours || 72,
+          startTime: this.sla.startTime || null,
+          deadline: this.sla.deadline || null,
+          remainingHours: this.sla.remainingHours,
+          overdueHours: this.sla.overdueHours || 0,
+          resolvedAt: this.sla.resolvedAt || null,
+          currentEscalationLevel: this.sla.currentEscalationLevel || 0,
+          lastEscalatedAt: this.sla.lastEscalatedAt || null,
+          nextEscalationThreshold: this.sla.nextEscalationThreshold || null,
+          isEscalated: Boolean(this.sla.isEscalated),
+          monitoringActive: this.sla.monitoringActive !== false
+        }
+      : null,
     imageAnalysis: this.imageAnalysis && (this.imageAnalysis.status !== 'Pending' || this.imageUrl)
       ? {
           status: this.imageAnalysis.status || 'Pending',

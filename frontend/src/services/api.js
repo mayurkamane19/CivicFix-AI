@@ -1839,6 +1839,291 @@ export const getAdminFeedbackStatsApi = async () => {
   }
 };
 
+/**
+ * Admin: GET /api/admin/sla/config
+ */
+export const getAdminSlaConfigApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/sla/config`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch SLA configuration' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching SLA configuration' };
+  }
+};
+
+/**
+ * Admin: PUT /api/admin/sla/config
+ */
+export const updateAdminSlaConfigApi = async (configPayload) => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/sla/config`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(configPayload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to update SLA configuration' };
+    }
+    return { success: true, data: data.data?.config || data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error updating SLA configuration' };
+  }
+};
+
+/**
+ * Admin: GET /api/admin/sla/overview
+ */
+export const getAdminSlaOverviewApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/sla/overview`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch SLA overview metrics' };
+    }
+    return { success: true, data: data.data?.stats || data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching SLA overview' };
+  }
+};
+
+/**
+ * Admin: GET /api/admin/sla/overdue
+ */
+export const getAdminOverdueComplaintsApi = async ({
+  department = '',
+  priority = '',
+  search = '',
+  page = 1,
+  limit = 10
+} = {}) => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const params = new URLSearchParams();
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    if (department && department !== 'all') params.append('department', department);
+    if (priority && priority !== 'all') params.append('priority', priority);
+    if (search && search.trim()) params.append('search', search.trim());
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API_BASE_URL}/api/admin/sla/overdue${qs}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch overdue complaints' };
+    }
+    return {
+      success: true,
+      data: data.data?.complaints || [],
+      pagination: data.data?.pagination || { total: 0, page: 1, totalPages: 1 }
+    };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching overdue complaints' };
+  }
+};
+
+/**
+ * Admin: GET /api/admin/escalations
+ */
+export const getAdminEscalationsApi = async ({
+  level = '',
+  department = '',
+  complaintId = '',
+  page = 1,
+  limit = 15
+} = {}) => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const params = new URLSearchParams();
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    if (level && level !== 'all') params.append('level', level);
+    if (department && department !== 'all') params.append('department', department);
+    if (complaintId && complaintId.trim()) params.append('complaintId', complaintId.trim());
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${API_BASE_URL}/api/admin/escalations${qs}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch escalation logs' };
+    }
+    return {
+      success: true,
+      data: data.data?.escalations || [],
+      pagination: data.data?.pagination || { total: 0, page: 1, totalPages: 1 }
+    };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching escalation logs' };
+  }
+};
+
+export const getAdminEscalationLogsApi = getAdminEscalationsApi;
+
+/**
+ * Admin: GET /api/admin/escalations/:complaintId
+ */
+export const getComplaintEscalationHistoryApi = async (complaintId) => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/escalations/${encodeURIComponent(complaintId)}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch complaint escalation history' };
+    }
+    return { success: true, data: data.data?.escalations || [] };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching complaint escalation history' };
+  }
+};
+
+/**
+ * Admin: POST /api/admin/escalations/:complaintId/manual
+ */
+export const manualEscalateComplaintApi = async (complaintId, { reason }) => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/escalations/${encodeURIComponent(complaintId)}/manual`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to manually escalate complaint' };
+    }
+    return { success: true, data: data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error manually escalating complaint' };
+  }
+};
+
+/**
+ * Admin: POST /api/admin/sla/evaluate
+ */
+export const triggerSlaEvaluationApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Administrator authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/sla/evaluate`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to trigger SLA evaluation' };
+    }
+    return { success: true, data: data.data?.summary || data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error triggering SLA evaluation' };
+  }
+};
+
+/**
+ * Officer: GET /api/officer/sla
+ */
+export const getOfficerSlaOverviewApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Officer authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/officer/sla`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch officer SLA overview' };
+    }
+    return { success: true, data: data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching officer SLA overview' };
+  }
+};
+
+/**
+ * Officer: GET /api/officer/escalations
+ */
+export const getOfficerEscalationsApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) return { success: false, error: 'Officer authorization required' };
+
+    const res = await fetch(`${API_BASE_URL}/api/officer/escalations`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch officer escalations' };
+    }
+    return { success: true, data: data.data?.escalations || [] };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching officer escalations' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -1886,6 +2171,17 @@ export default {
   getMyFeedbackApi,
   getAdminFeedbackApi,
   getAdminFeedbackStatsApi,
+  getAdminSlaConfigApi,
+  updateAdminSlaConfigApi,
+  getAdminSlaOverviewApi,
+  getAdminOverdueComplaintsApi,
+  getAdminEscalationsApi,
+  getAdminEscalationLogsApi,
+  getComplaintEscalationHistoryApi,
+  manualEscalateComplaintApi,
+  triggerSlaEvaluationApi,
+  getOfficerSlaOverviewApi,
+  getOfficerEscalationsApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

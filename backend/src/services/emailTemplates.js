@@ -529,11 +529,188 @@ Thank you for reporting this issue.
   };
 };
 
+/**
+ * Renders an SLA Warning Alert email when a complaint is approaching its deadline
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {number} params.remainingHours
+ * @param {string} params.portalUrl
+ * @returns {{subject: string, html: string, text: string}}
+ */
+export const renderSlaWarningEmail = ({ complaint, remainingHours, portalUrl }) => {
+  const complaintId = complaint.complaintId || 'N/A';
+  const title = complaint.title || 'Untitled Issue';
+  const subject = `⚠️ SLA Warning: Complaint #${complaintId} approaching deadline (${remainingHours}h remaining)`;
+
+  const bodyHtml = `
+    <h2>⚠️ SLA Resolution Deadline Approaching</h2>
+    <p>This automated notice informs you that a municipal complaint assigned to your department is approaching its SLA deadline.</p>
+
+    <div class="card-details" style="border-left: 4px solid #f59e0b;">
+      <div class="detail-row">
+        <span class="detail-label">Ticket ID:</span>
+        <span class="detail-value">#${escapeHtml(complaintId)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Issue:</span>
+        <span class="detail-value">${escapeHtml(title)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Category:</span>
+        <span class="detail-value">${escapeHtml(complaint.category || 'General')}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Remaining Time:</span>
+        <span class="detail-value" style="color: #d97706; font-weight: bold;">${escapeHtml(remainingHours)} hours</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Deadline:</span>
+        <span class="detail-value">${complaint.sla?.deadline ? new Date(complaint.sla.deadline).toLocaleString() : 'N/A'}</span>
+      </div>
+    </div>
+
+    <p>Please review and expedite field inspection or resolution to avoid escalation.</p>
+
+    <div style="text-align: center;">
+      <a href="${escapeHtml(portalUrl)}" class="btn-cta" style="background-color: #d97706;" target="_blank" rel="noopener noreferrer">
+        Open Operations Workspace &rarr;
+      </a>
+    </div>
+  `;
+
+  const text = `SLA Warning: Complaint #${complaintId} approaching deadline
+Title: ${title}
+Remaining Time: ${remainingHours} hours
+Please take action to complete resolution.
+Access portal: ${portalUrl}`;
+
+  return {
+    subject,
+    html: renderEmailShell({ title: subject, bodyHtml }),
+    text
+  };
+};
+
+/**
+ * Renders an SLA Breach Alert email when a complaint deadline is missed
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {number} params.overdueHours
+ * @param {string} params.portalUrl
+ * @returns {{subject: string, html: string, text: string}}
+ */
+export const renderSlaBreachEmail = ({ complaint, overdueHours, portalUrl }) => {
+  const complaintId = complaint.complaintId || 'N/A';
+  const title = complaint.title || 'Untitled Issue';
+  const subject = `🚨 SLA Breach: Complaint #${complaintId} is OVERDUE by ${overdueHours}h`;
+
+  const bodyHtml = `
+    <h2>🚨 SLA Target Breached (Level 2 Escalation)</h2>
+    <p>A civic complaint has passed its agreed municipal resolution deadline and has been escalated to department leadership.</p>
+
+    <div class="card-details" style="border-left: 4px solid #ef4444;">
+      <div class="detail-row">
+        <span class="detail-label">Ticket ID:</span>
+        <span class="detail-value">#${escapeHtml(complaintId)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Issue:</span>
+        <span class="detail-value">${escapeHtml(title)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Department:</span>
+        <span class="detail-value">${escapeHtml(complaint.assignedDepartment?.name || complaint.assignedDepartmentName || 'Unassigned')}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Overdue Duration:</span>
+        <span class="detail-value" style="color: #dc2626; font-weight: bold;">${escapeHtml(overdueHours)} hours past deadline</span>
+      </div>
+    </div>
+
+    <p>Immediate supervisory intervention is required to complete field work and update incident status.</p>
+
+    <div style="text-align: center;">
+      <a href="${escapeHtml(portalUrl)}" class="btn-cta" style="background-color: #dc2626;" target="_blank" rel="noopener noreferrer">
+        Review Escalated Ticket &rarr;
+      </a>
+    </div>
+  `;
+
+  const text = `SLA Breach: Complaint #${complaintId} is OVERDUE by ${overdueHours} hours.
+Immediate supervisory intervention required.
+Access portal: ${portalUrl}`;
+
+  return {
+    subject,
+    html: renderEmailShell({ title: subject, bodyHtml }),
+    text
+  };
+};
+
+/**
+ * Renders a Critical Escalation Alert email (Level 3 or Manual Administrative Escalation)
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {number} params.escalationLevel
+ * @param {string} params.reason
+ * @param {string} params.portalUrl
+ * @returns {{subject: string, html: string, text: string}}
+ */
+export const renderSlaEscalationEmail = ({ complaint, escalationLevel, reason, portalUrl }) => {
+  const complaintId = complaint.complaintId || 'N/A';
+  const title = complaint.title || 'Untitled Issue';
+  const subject = `🔥 [CRITICAL ESCALATION Level ${escalationLevel}] Complaint #${complaintId}`;
+
+  const bodyHtml = `
+    <h2>🔥 High-Priority Incident Escalation (Level ${escapeHtml(escalationLevel)})</h2>
+    <p>This complaint has crossed critical escalation criteria and has been brought directly to the attention of municipal administration.</p>
+
+    <div class="card-details" style="border-left: 4px solid #b91c1c;">
+      <div class="detail-row">
+        <span class="detail-label">Ticket ID:</span>
+        <span class="detail-value">#${escapeHtml(complaintId)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Escalation Level:</span>
+        <span class="detail-value" style="color: #b91c1c; font-weight: bold;">Level ${escapeHtml(escalationLevel)} (Critical)</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Issue:</span>
+        <span class="detail-value">${escapeHtml(title)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Justification / Reason:</span>
+        <span class="detail-value">${escapeHtml(reason)}</span>
+      </div>
+    </div>
+
+    <div style="text-align: center;">
+      <a href="${escapeHtml(portalUrl)}" class="btn-cta" style="background-color: #b91c1c;" target="_blank" rel="noopener noreferrer">
+        Admin Command Center &rarr;
+      </a>
+    </div>
+  `;
+
+  const text = `Critical Escalation Level ${escalationLevel}: Complaint #${complaintId}
+Title: ${title}
+Reason: ${reason}
+Access admin command center: ${portalUrl}`;
+
+  return {
+    subject,
+    html: renderEmailShell({ title: subject, bodyHtml }),
+    text
+  };
+};
+
 export default {
   escapeHtml,
   renderComplaintSubmissionEmail,
   renderComplaintStatusUpdateEmail,
   renderDepartmentAssignmentEmail,
   renderOfficerAssignmentEmail,
-  renderComplaintResolutionEmail
+  renderComplaintResolutionEmail,
+  renderSlaWarningEmail,
+  renderSlaBreachEmail,
+  renderSlaEscalationEmail
 };

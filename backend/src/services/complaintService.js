@@ -12,6 +12,7 @@ import {
 import { analyzeComplaintImage } from './imageAnalysisService.js';
 import { findPotentialDuplicates } from './duplicateDetectionService.js';
 import { notifyComplaintSubmitted } from './notificationService.js';
+import { initializeComplaintSla } from './slaService.js';
 
 export const ALLOWED_CATEGORIES = [
   'Road Damage',
@@ -366,7 +367,15 @@ export const createComplaint = async ({
       }
     }
 
-    // 12. Send Complaint Submission Email Notification (Non-blocking: respects citizen consent)
+    // 12. Initialize SLA Tracking
+    try {
+      await initializeComplaintSla(complaint);
+      await complaint.save();
+    } catch (slaErr) {
+      console.warn(`[Complaint Creation] SLA init warning for ${complaint.complaintId}:`, slaErr.message);
+    }
+
+    // 13. Send Complaint Submission Email Notification (Non-blocking: respects citizen consent)
     try {
       await notifyComplaintSubmitted(complaint);
     } catch (notifyErr) {

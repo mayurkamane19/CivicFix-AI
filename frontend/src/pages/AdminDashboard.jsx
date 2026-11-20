@@ -9,6 +9,7 @@ import DepartmentManagement from '../components/admin/DepartmentManagement';
 import OfficerManagement from '../components/admin/OfficerManagement';
 import NotificationManagement from '../components/admin/NotificationManagement';
 import FeedbackManagement from '../components/admin/FeedbackManagement';
+import SlaManagement from '../components/admin/SlaManagement';
 import AdminComplaintMap from '../components/map/AdminComplaintMap';
 import AnalyticsDashboard from '../components/analytics/AnalyticsDashboard';
 import {
@@ -398,6 +399,13 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
             >
               ⭐ Citizen Feedback
             </button>
+            <button
+              type="button"
+              className={`admin-tab-btn ${activeTab === 'sla' ? 'active' : ''}`}
+              onClick={() => setActiveTab('sla')}
+            >
+              ⏱️ SLA &amp; Escalations
+            </button>
           </nav>
         </div>
       </header>
@@ -592,6 +600,13 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
         {activeTab === 'feedback' && (
           <div className="admin-feedback-section">
             <FeedbackManagement />
+          </div>
+        )}
+
+        {/* TAB 8: SLA & ESCALATION MANAGEMENT */}
+        {activeTab === 'sla' && (
+          <div className="admin-sla-section">
+            <SlaManagement onViewDetails={handleViewDetails} />
           </div>
         )}
       </main>
