@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { NotificationLog } from '../models/NotificationLog.js';
-import { User } from '../models/User.js';
+import { NotificationLog, mapEventToCategory } from '../models/NotificationLog.js';
+import { User, DEFAULT_NOTIFICATION_PREFERENCES } from '../models/User.js';
 import { config } from '../config/env.js';
 import {
   renderComplaintSubmissionEmail,
@@ -61,17 +61,24 @@ export const buildAdminPortalUrl = () => {
  */
 export const queueNotification = async ({
   eventType,
-  complaint,
+  complaint = null,
   recipientEmail,
   recipientUser = null,
   recipientRole = 'citizen',
+  title = null,
+  message = null,
+  category = null,
+  priority = 'Medium',
+  actionUrl = null,
+  department = null,
   subject,
   html,
   text,
   idempotencyKey,
-  metadata = {}
+  metadata = {},
+  sendEmail = true
 }) => {
-  if (!eventType || !complaint || !recipientEmail || !subject || !idempotencyKey) {
+  if (!eventType || !recipientEmail || !subject || !idempotencyKey) {
     throw new Error('Missing required notification parameters');
   }
 
@@ -81,17 +88,45 @@ export const queueNotification = async ({
     return existingLog;
   }
 
-  // 2. Persist in durable outbox
+  // 2. Resolve recipientUser if not provided
+  let resolvedUser = recipientUser;
+  if (!resolvedUser && complaint?.reportedBy && recipientRole === 'citizen') {
+    resolvedUser = complaint.reportedBy;
+  }
+  if (!resolvedUser && complaint?.assignedOfficer && recipientRole === 'officer') {
+    resolvedUser = complaint.assignedOfficer;
+  }
+
+  // 3. Resolve actionUrl
+  const resolvedActionUrl = actionUrl || (
+    complaint?.complaintId
+      ? (recipientRole === 'officer'
+          ? buildOfficerPortalUrl()
+          : recipientRole === 'admin'
+          ? buildAdminPortalUrl()
+          : buildTrackingUrl(complaint.complaintId))
+      : null
+  );
+
+  // 4. Persist in durable outbox & user inbox
   try {
     const notification = new NotificationLog({
       eventType,
-      complaint: complaint._id || complaint.id,
-      complaintId: complaint.complaintId,
+      title: title || subject,
+      message: message || text || subject,
+      category: category || mapEventToCategory(eventType),
+      priority,
+      complaint: complaint ? (complaint._id || complaint.id) : null,
+      complaintId: complaint ? complaint.complaintId : null,
+      department: department || complaint?.assignedDepartment?._id || complaint?.assignedDepartment || null,
       recipientEmail: recipientEmail.trim().toLowerCase(),
-      recipientUser: recipientUser || null,
+      recipientUser: resolvedUser || null,
       recipientRole,
       subject,
-      deliveryStatus: 'Pending',
+      isRead: false,
+      isArchived: false,
+      actionUrl: resolvedActionUrl,
+      deliveryStatus: sendEmail ? 'Pending' : 'Skipped',
       retryCount: 0,
       maxRetries: 3,
       idempotencyKey,
@@ -104,12 +139,14 @@ export const queueNotification = async ({
 
     await notification.save();
 
-    // 3. Trigger asynchronous background dispatch worker without blocking caller
-    setImmediate(() => {
-      processNotificationAsync(notification._id).catch((err) => {
-        console.warn(`[Notification Worker] Background dispatch error for ${notification._id}:`, err.message);
+    // 5. Trigger asynchronous background dispatch worker without blocking caller (if email delivery active)
+    if (sendEmail) {
+      setImmediate(() => {
+        processNotificationAsync(notification._id).catch((err) => {
+          console.warn(`[Notification Worker] Background dispatch error for ${notification._id}:`, err.message);
+        });
       });
-    });
+    }
 
     return notification;
   } catch (err) {
@@ -290,6 +327,11 @@ export const notifyStatusUpdated = async (
           changedByName
         }
       });
+    }
+
+    if (newStatus === 'Reopened') {
+      const reopenResults = await notifyComplaintReopened(complaint, { reason: note, reopenedBy: changedByName });
+      return Array.isArray(reopenResults) && reopenResults.length > 0 ? reopenResults[0] : null;
     }
 
     // Event: STATUS_UPDATE
@@ -721,6 +763,525 @@ export const notifyManualEscalation = async ({ complaint, escalationLevel, reaso
   return results;
 };
 
+/**
+ * Service: Retrieves paginated notifications for the authenticated user (in-app inbox)
+ * Strictly scoped to userId (anti-IDOR)
+ *
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @param {object} options
+ * @param {number} [options.page=1]
+ * @param {number} [options.limit=20]
+ * @param {string} [options.status='all'] - 'all', 'unread', or 'read'
+ * @param {string} [options.category='all']
+ * @param {string} [options.search='']
+ * @returns {Promise<object>}
+ */
+export const getUserNotifications = async (userId, {
+  page = 1,
+  limit = 20,
+  status = 'all',
+  category = 'all',
+  search = ''
+} = {}) => {
+  if (!userId) {
+    return {
+      notifications: [],
+      unreadCount: 0,
+      pagination: {
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false
+      }
+    };
+  }
+
+  const filter = {
+    recipientUser: userId,
+    isArchived: false
+  };
+
+  if (status === 'unread') {
+    filter.isRead = false;
+  } else if (status === 'read') {
+    filter.isRead = true;
+  }
+
+  if (category && category !== 'all') {
+    filter.category = category;
+  }
+
+  if (search && search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.$or = [
+      { title: { $regex: escaped, $options: 'i' } },
+      { message: { $regex: escaped, $options: 'i' } },
+      { complaintId: { $regex: escaped, $options: 'i' } }
+    ];
+  }
+
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+  const skip = (safePage - 1) * safeLimit;
+
+  const [logs, total, unreadCount] = await Promise.all([
+    NotificationLog.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(safeLimit),
+    NotificationLog.countDocuments(filter),
+    NotificationLog.countDocuments({
+      recipientUser: userId,
+      isArchived: false,
+      isRead: false
+    })
+  ]);
+
+  return {
+    notifications: logs.map((l) => (typeof l.toSafeObject === 'function' ? l.toSafeObject() : l)),
+    unreadCount,
+    pagination: {
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit) || 1,
+      hasNextPage: safePage < (Math.ceil(total / safeLimit) || 1),
+      hasPrevPage: safePage > 1
+    }
+  };
+};
+
+/**
+ * Service: Retrieves unread notification count for authenticated user
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<number>}
+ */
+export const getUserUnreadCount = async (userId) => {
+  if (!userId) return 0;
+  return await NotificationLog.countDocuments({
+    recipientUser: userId,
+    isArchived: false,
+    isRead: false
+  });
+};
+
+/**
+ * Service: Marks a specific notification as read for the authenticated user
+ * Strictly verifies recipientUser ownership (anti-IDOR)
+ *
+ * @param {string|mongoose.Types.ObjectId} notificationId
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<object|null>}
+ */
+export const markNotificationAsRead = async (notificationId, userId) => {
+  if (!notificationId || !userId) return null;
+
+  const notification = await NotificationLog.findOne({
+    _id: notificationId,
+    recipientUser: userId,
+    isArchived: false
+  });
+
+  if (!notification) {
+    return null;
+  }
+
+  if (!notification.isRead) {
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await notification.save();
+  }
+
+  return typeof notification.toSafeObject === 'function' ? notification.toSafeObject() : notification;
+};
+
+/**
+ * Service: Marks all unread notifications as read for the authenticated user
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<{ count: number }>}
+ */
+export const markAllNotificationsAsRead = async (userId) => {
+  if (!userId) return { count: 0 };
+
+  const result = await NotificationLog.updateMany(
+    {
+      recipientUser: userId,
+      isArchived: false,
+      isRead: false
+    },
+    {
+      $set: {
+        isRead: true,
+        readAt: new Date()
+      }
+    }
+  );
+
+  return { count: result.modifiedCount || result.nModified || 0 };
+};
+
+/**
+ * Service: Archives (dismisses) a notification for the authenticated user
+ * Strictly verifies ownership (anti-IDOR)
+ *
+ * @param {string|mongoose.Types.ObjectId} notificationId
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<object|null>}
+ */
+export const archiveUserNotification = async (notificationId, userId) => {
+  if (!notificationId || !userId) return null;
+
+  const notification = await NotificationLog.findOne({
+    _id: notificationId,
+    recipientUser: userId
+  });
+
+  if (!notification) {
+    return null;
+  }
+
+  notification.isArchived = true;
+  await notification.save();
+
+  return typeof notification.toSafeObject === 'function' ? notification.toSafeObject() : notification;
+};
+
+/**
+ * Service: Clears all read notifications for the authenticated user (archives them)
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<{ count: number }>}
+ */
+export const clearReadUserNotifications = async (userId) => {
+  if (!userId) return { count: 0 };
+
+  const result = await NotificationLog.updateMany(
+    {
+      recipientUser: userId,
+      isRead: true,
+      isArchived: false
+    },
+    {
+      $set: { isArchived: true }
+    }
+  );
+
+  return { count: result.modifiedCount || result.nModified || 0 };
+};
+
+/**
+ * Service: Retrieves notification preferences for a user
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @returns {Promise<object|null>}
+ */
+export const getUserNotificationPreferences = async (userId) => {
+  if (!userId) return null;
+
+  const user = await User.findById(userId).select('email role emailNotificationsEnabled notificationPreferences');
+  if (!user) return null;
+
+  const prefs = {
+    ...DEFAULT_NOTIFICATION_PREFERENCES,
+    ...(user.notificationPreferences ? (user.notificationPreferences.toObject ? user.notificationPreferences.toObject() : user.notificationPreferences) : {})
+  };
+
+  return {
+    email: user.email,
+    role: user.role,
+    emailNotificationsEnabled: user.emailNotificationsEnabled === true,
+    notificationPreferences: prefs
+  };
+};
+
+/**
+ * Service: Updates notification preferences for authenticated user
+ * Strictly enforces role-mandated alerts (anti-circumvention)
+ *
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @param {object} updates
+ * @returns {Promise<object|null>}
+ */
+export const updateUserNotificationPreferences = async (userId, updates = {}) => {
+  if (!userId) return null;
+
+  const user = await User.findById(userId);
+  if (!user) return null;
+
+  // Legacy boolean toggle support
+  if (typeof updates.emailNotificationsEnabled === 'boolean') {
+    user.emailNotificationsEnabled = updates.emailNotificationsEnabled;
+  }
+
+  const incomingPrefs = updates.notificationPreferences || (typeof updates === 'object' ? updates : {});
+  const currentPrefs = user.notificationPreferences
+    ? (user.notificationPreferences.toObject ? user.notificationPreferences.toObject() : user.notificationPreferences)
+    : { ...DEFAULT_NOTIFICATION_PREFERENCES };
+
+  const merged = { ...currentPrefs };
+
+  for (const key of Object.keys(DEFAULT_NOTIFICATION_PREFERENCES)) {
+    if (typeof incomingPrefs[key] === 'boolean') {
+      merged[key] = incomingPrefs[key];
+    }
+  }
+
+  // Enforce role-mandated alerts:
+  // Administrators cannot disable critical escalation alerts
+  if (user.role === 'admin') {
+    merged.criticalEscalations = true;
+  }
+  // Field officers cannot disable new assignments alerts
+  if (user.role === 'officer') {
+    merged.newAssignments = true;
+  }
+
+  user.notificationPreferences = merged;
+  await user.save();
+
+  return {
+    email: user.email,
+    role: user.role,
+    emailNotificationsEnabled: user.emailNotificationsEnabled === true,
+    notificationPreferences: user.notificationPreferences
+  };
+};
+
+/**
+ * Notifies citizen and assigned officer when a complaint is reopened
+ * @param {object} complaint
+ * @param {object} params
+ * @param {string} [params.reason='']
+ * @param {string} [params.reopenedBy='Municipal Staff']
+ * @returns {Promise<Array<object>>}
+ */
+export const notifyComplaintReopened = async (complaint, { reason = 'Issue requires further resolution', reopenedBy = 'Municipal Staff' } = {}) => {
+  if (!complaint || !complaint.complaintId) return [];
+
+  const results = [];
+  const trackingUrl = buildTrackingUrl(complaint.complaintId);
+
+  // 1. Citizen notice
+  if (complaint.citizenEmail) {
+    try {
+      const citizenLog = await queueNotification({
+        eventType: 'COMPLAINT_REOPENED',
+        complaint,
+        recipientEmail: complaint.citizenEmail,
+        recipientUser: complaint.reportedBy || null,
+        recipientRole: 'citizen',
+        title: `Complaint Reopened: ${complaint.complaintId}`,
+        message: `Your complaint "${complaint.title}" has been reopened for further investigation: ${reason}`,
+        category: 'reopened',
+        priority: 'High',
+        actionUrl: trackingUrl,
+        subject: `[CivicFix AI] Complaint Reopened - #${complaint.complaintId}`,
+        html: `<p>Your complaint <strong>#${complaint.complaintId}</strong> (${complaint.title}) has been reopened.</p><p>Reason: ${reason}</p><p><a href="${trackingUrl}">Track your complaint</a></p>`,
+        text: `Your complaint #${complaint.complaintId} has been reopened. Reason: ${reason}. View: ${trackingUrl}`,
+        idempotencyKey: `REOPEN_CITIZEN_${complaint.complaintId}_${Date.now()}`,
+        metadata: { reason, reopenedBy },
+        sendEmail: complaint.emailNotificationsEnabled === true
+      });
+      results.push(citizenLog);
+    } catch (err) {
+      console.warn(`[Notification] Reopen citizen notice failed for ${complaint.complaintId}:`, err.message);
+    }
+  }
+
+  // 2. Assigned officer notice
+  if (complaint.assignedOfficer?.email) {
+    try {
+      const officerLog = await queueNotification({
+        eventType: 'COMPLAINT_REOPENED',
+        complaint,
+        recipientEmail: complaint.assignedOfficer.email,
+        recipientUser: complaint.assignedOfficer._id || complaint.assignedOfficer.id,
+        recipientRole: 'officer',
+        title: `Action Required: Reopened #${complaint.complaintId}`,
+        message: `Complaint "${complaint.title}" has been reopened: ${reason}`,
+        category: 'reopened',
+        priority: 'High',
+        actionUrl: buildOfficerPortalUrl(),
+        subject: `[CivicFix Alert] Reopened Complaint - #${complaint.complaintId}`,
+        html: `<p>Complaint <strong>#${complaint.complaintId}</strong> has been reopened by ${reopenedBy}.</p><p>Reason: ${reason}</p>`,
+        text: `Complaint #${complaint.complaintId} has been reopened by ${reopenedBy}. Reason: ${reason}`,
+        idempotencyKey: `REOPEN_OFFICER_${complaint.complaintId}_${Date.now()}`,
+        metadata: { reason, reopenedBy },
+        sendEmail: true
+      });
+      results.push(officerLog);
+    } catch (err) {
+      console.warn(`[Notification] Reopen officer notice failed for ${complaint.complaintId}:`, err.message);
+    }
+  }
+
+  return results;
+};
+
+/**
+ * Notifies assigned officer and administrators when citizen submits feedback
+ * @param {object} params
+ * @param {object} params.complaint
+ * @param {object} params.feedback
+ * @param {string|mongoose.Types.ObjectId} [params.citizenId]
+ * @returns {Promise<Array<object>>}
+ */
+export const notifyFeedbackReceived = async ({ complaint, feedback, citizenId = null }) => {
+  if (!complaint || !feedback) return [];
+
+  const results = [];
+
+  // 1. Notify assigned officer
+  if (complaint.assignedOfficer?.email) {
+    try {
+      const officerLog = await queueNotification({
+        eventType: 'FEEDBACK_RECEIVED',
+        complaint,
+        recipientEmail: complaint.assignedOfficer.email,
+        recipientUser: complaint.assignedOfficer._id || complaint.assignedOfficer.id,
+        recipientRole: 'officer',
+        title: `Feedback Received: ${feedback.rating} Stars`,
+        message: `Citizen submitted a ${feedback.rating}-star review for complaint "${complaint.title}": "${feedback.comment || 'No comment'}"`,
+        category: 'feedback',
+        priority: feedback.rating <= 2 ? 'High' : 'Low',
+        actionUrl: buildOfficerPortalUrl(),
+        subject: `[CivicFix Feedback] ${feedback.rating}★ Review on #${complaint.complaintId}`,
+        html: `<p>Citizen provided a ${feedback.rating}-star rating on #${complaint.complaintId}.</p><p>Comment: ${feedback.comment || 'None'}</p>`,
+        text: `Citizen provided a ${feedback.rating}-star rating on #${complaint.complaintId}. Comment: ${feedback.comment || 'None'}`,
+        idempotencyKey: `FEEDBACK_OFFICER_${complaint.complaintId}_${feedback._id || Date.now()}`,
+        metadata: { rating: feedback.rating, comment: feedback.comment },
+        sendEmail: true
+      });
+      results.push(officerLog);
+    } catch (err) {
+      console.warn(`[Notification] Officer feedback notification failed for ${complaint.complaintId}:`, err.message);
+    }
+  }
+
+  // 2. Notify municipal admin
+  try {
+    const isLiveDbOrMocked = (mongoose.connection.readyState === 1 && Boolean(mongoose.connection.db)) || Boolean(User._isMocked);
+    if (!isLiveDbOrMocked) return results;
+
+    const admins = await User.find({ role: 'admin', isActive: true }).limit(2);
+    for (const admin of admins) {
+      if (!admin.email) continue;
+      const adminLog = await queueNotification({
+        eventType: 'FEEDBACK_RECEIVED',
+        complaint,
+        recipientEmail: admin.email,
+        recipientUser: admin._id,
+        recipientRole: 'admin',
+        title: `Citizen Feedback: ${feedback.rating}★ (${complaint.complaintId})`,
+        message: `New feedback received for "${complaint.title}": ${feedback.rating}/5 stars.`,
+        category: 'feedback',
+        priority: feedback.rating <= 2 ? 'High' : 'Low',
+        actionUrl: buildAdminPortalUrl(),
+        subject: `[CivicFix Admin] ${feedback.rating}★ Feedback on #${complaint.complaintId}`,
+        html: `<p>New citizen feedback received for #${complaint.complaintId}: ${feedback.rating} stars.</p><p>${feedback.comment || ''}</p>`,
+        text: `New feedback received for #${complaint.complaintId}: ${feedback.rating}/5 stars.`,
+        idempotencyKey: `FEEDBACK_ADMIN_${complaint.complaintId}_${admin._id}_${feedback._id || Date.now()}`,
+        metadata: { rating: feedback.rating, comment: feedback.comment },
+        sendEmail: feedback.rating <= 2
+      });
+      results.push(adminLog);
+    }
+  } catch (err) {
+    console.warn(`[Notification] Admin feedback notification failed for ${complaint.complaintId}:`, err.message);
+  }
+
+  return results;
+};
+
+/**
+ * Broadcasts system announcement to targeted users
+ * @param {object} params
+ * @param {string} params.title
+ * @param {string} params.message
+ * @param {string} [params.priority='Medium']
+ * @param {string} [params.targetRole='all']
+ * @param {string} [params.actionUrl=null]
+ * @param {object} [params.adminUser=null]
+ * @returns {Promise<Array<object>>}
+ */
+export const notifySystemAnnouncement = async ({
+  title,
+  message,
+  priority = 'Medium',
+  targetRole = 'all',
+  actionUrl = null,
+  adminUser = null
+}) => {
+  if (!title || !message) return [];
+
+  try {
+    const userQuery = { isActive: true };
+    if (targetRole && targetRole !== 'all') {
+      userQuery.role = targetRole;
+    }
+
+    const recipients = await User.find(userQuery).select('_id email role name');
+    const results = [];
+
+    for (const user of recipients) {
+      const idempotencyKey = `ANNOUNCEMENT_${Date.now()}_${user._id}`;
+      const log = await queueNotification({
+        eventType: 'SYSTEM_ANNOUNCEMENT',
+        complaint: null,
+        recipientEmail: user.email,
+        recipientUser: user._id,
+        recipientRole: user.role,
+        title,
+        message,
+        category: 'announcement',
+        priority,
+        actionUrl: actionUrl || (user.role === 'officer' ? buildOfficerPortalUrl() : user.role === 'admin' ? buildAdminPortalUrl() : '/'),
+        subject: `[CivicFix Announcement] ${title}`,
+        html: `<p><strong>${title}</strong></p><p>${message}</p>`,
+        text: `${title}\n\n${message}`,
+        idempotencyKey,
+        metadata: {
+          broadcastBy: adminUser?.name || 'Municipal Administration',
+          targetRole
+        },
+        sendEmail: priority === 'Critical'
+      });
+      results.push(log);
+    }
+
+    return results;
+  } catch (err) {
+    console.warn('[Notification] System announcement broadcast failed:', err.message);
+    return [];
+  }
+};
+
+/**
+ * Sweeps pending notifications and processes retries
+ * @param {number} [batchSize=25]
+ * @returns {Promise<Array<object>>}
+ */
+export const processPendingNotificationRetries = async (batchSize = 25) => {
+  const pendingLogs = await NotificationLog.find({
+    deliveryStatus: 'Pending',
+    retryCount: { $lt: 3 }
+  })
+    .sort({ createdAt: 1 })
+    .limit(batchSize);
+
+  const results = [];
+  for (const log of pendingLogs) {
+    try {
+      const processed = await processNotificationAsync(log._id);
+      if (processed) results.push(processed);
+    } catch (err) {
+      console.warn(`[Notification Retry] Error processing ${log._id}:`, err.message);
+    }
+  }
+
+  return results;
+};
+
 export default {
   buildTrackingUrl,
   buildOfficerPortalUrl,
@@ -735,5 +1296,17 @@ export default {
   notifySlaBreach,
   notifySlaEscalation,
   notifyManualEscalation,
+  notifyComplaintReopened,
+  notifyFeedbackReceived,
+  notifySystemAnnouncement,
+  processPendingNotificationRetries,
+  getUserNotifications,
+  getUserUnreadCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  archiveUserNotification,
+  clearReadUserNotifications,
+  getUserNotificationPreferences,
+  updateUserNotificationPreferences,
   getAdminNotificationLogs
 };

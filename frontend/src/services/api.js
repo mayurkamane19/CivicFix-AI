@@ -1285,15 +1285,19 @@ export const getNotificationPreferencesApi = async () => {
 
 /**
  * Updates the current authenticated user's notification preferences
- * @param {boolean} emailNotificationsEnabled
+ * @param {boolean|object} preferencesOrEnabled
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
-export const updateNotificationPreferencesApi = async (emailNotificationsEnabled) => {
+export const updateNotificationPreferencesApi = async (preferencesOrEnabled) => {
   try {
     const token = getStoredToken();
     if (!token) {
       return { success: false, error: 'Unauthorized: Authentication required' };
     }
+
+    const payload = typeof preferencesOrEnabled === 'boolean'
+      ? { emailNotificationsEnabled: preferencesOrEnabled }
+      : (typeof preferencesOrEnabled === 'object' ? preferencesOrEnabled : {});
 
     const response = await fetch(`${API_BASE_URL}/api/notifications/preferences`, {
       method: 'PATCH',
@@ -1302,7 +1306,7 @@ export const updateNotificationPreferencesApi = async (emailNotificationsEnabled
         'Accept': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ emailNotificationsEnabled })
+      body: JSON.stringify(payload)
     });
 
     const data = await response.json();
@@ -1313,6 +1317,242 @@ export const updateNotificationPreferencesApi = async (emailNotificationsEnabled
     return { success: true, data: data.data };
   } catch (error) {
     return { success: false, error: error.message || 'Network error updating notification preferences' };
+  }
+};
+
+/**
+ * Retrieves paginated in-app notifications for the authenticated user
+ * @param {object} params
+ * @returns {Promise<{success: boolean, data?: Array, pagination?: object, unreadCount?: number, error?: string}>}
+ */
+export const getUserNotificationsApi = async ({
+  page = 1,
+  limit = 20,
+  status = 'all',
+  category = 'all',
+  search = ''
+} = {}) => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Authentication required' };
+    }
+
+    const queryParams = new URLSearchParams();
+    if (page) queryParams.append('page', page);
+    if (limit) queryParams.append('limit', limit);
+    if (status && status !== 'all') queryParams.append('status', status);
+    if (category && category !== 'all') queryParams.append('category', category);
+    if (search && search.trim()) queryParams.append('search', search.trim());
+
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications${query}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to fetch notifications' };
+    }
+
+    return {
+      success: true,
+      data: data.data?.notifications || [],
+      pagination: data.data?.pagination || null,
+      unreadCount: data.data?.unreadCount || 0
+    };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error fetching notifications' };
+  }
+};
+
+/**
+ * Retrieves unread notification count for the authenticated user (for polling badge)
+ * @returns {Promise<{success: boolean, data?: {unreadCount: number}, error?: string}>}
+ */
+export const getUnreadCountApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Authentication required' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/unread-count`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to fetch unread count' };
+    }
+
+    return { success: true, data: data.data };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error fetching unread count' };
+  }
+};
+
+/**
+ * Marks a notification as read
+ * @param {string} notificationId
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const markNotificationReadApi = async (notificationId) => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Authentication required' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to mark notification as read' };
+    }
+
+    return { success: true, data: data.data };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error updating notification' };
+  }
+};
+
+/**
+ * Marks all notifications as read for current user
+ * @returns {Promise<{success: boolean, data?: {count: number}, error?: string}>}
+ */
+export const markAllNotificationsReadApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Authentication required' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
+      method: 'PATCH',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to mark all as read' };
+    }
+
+    return { success: true, data: data.data };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error marking all as read' };
+  }
+};
+
+/**
+ * Dismisses/archives a notification for current user
+ * @param {string} notificationId
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const deleteNotificationApi = async (notificationId) => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Authentication required' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to delete notification' };
+    }
+
+    return { success: true, data: data.data };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error deleting notification' };
+  }
+};
+
+/**
+ * Clears (archives) all read notifications for current user
+ * @returns {Promise<{success: boolean, data?: {count: number}, error?: string}>}
+ */
+export const clearReadNotificationsApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Authentication required' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/read`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to clear read notifications' };
+    }
+
+    return { success: true, data: data.data };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error clearing notifications' };
+  }
+};
+
+/**
+ * Broadcasts system announcement (Admin only)
+ * @param {object} payload
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const broadcastAnnouncementApi = async (payload) => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Unauthorized: Administrator authentication required' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/notifications/announcement`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return { success: false, error: data.message || 'Failed to broadcast announcement' };
+    }
+
+    return { success: true, data: data.data };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error broadcasting announcement' };
   }
 };
 
@@ -2155,6 +2395,13 @@ export default {
   getPublicMapComplaintsApi,
   getNotificationPreferencesApi,
   updateNotificationPreferencesApi,
+  getUserNotificationsApi,
+  getUnreadCountApi,
+  markNotificationReadApi,
+  markAllNotificationsReadApi,
+  deleteNotificationApi,
+  clearReadNotificationsApi,
+  broadcastAnnouncementApi,
   getAdminNotificationsApi,
   getAdminAnalyticsOverviewApi,
   getAdminAnalyticsTrendsApi,

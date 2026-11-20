@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Feedback } from '../models/Feedback.js';
 import { Complaint } from '../models/Complaint.js';
 import { getDatabaseStatus } from '../config/db.js';
+import { notifyFeedbackReceived } from './notificationService.js';
 
 /**
  * Helper to check database availability
@@ -129,6 +130,14 @@ export const submitFeedback = async (citizenId, complaintIdentifier, { rating, c
     });
 
     await feedback.save();
+
+    // Trigger non-blocking feedback notification for officer and admin
+    try {
+      notifyFeedbackReceived({ complaint, feedback, citizenId }).catch((err) => {
+        console.warn('[Notification] Failed to dispatch feedback notification:', err.message);
+      });
+    } catch (_) {}
+
     return feedback.toSafeObject();
   } catch (err) {
     if (err.code === 11000) {

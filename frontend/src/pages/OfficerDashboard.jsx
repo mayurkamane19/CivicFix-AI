@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OfficerComplaintMap from '../components/map/OfficerComplaintMap';
+import NotificationCenter from '../components/notifications/NotificationCenter';
 import {
   getOfficerStatsApi,
   getOfficerComplaintsApi,
@@ -258,6 +259,7 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
             </div>
 
             <div className="admin-header-actions">
+              <NotificationCenter currentUser={currentUser} />
               <button
                 type="button"
                 className="btn btn-outline btn-small"

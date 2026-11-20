@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import StatusIndicator from './StatusIndicator';
+import NotificationCenter from './notifications/NotificationCenter';
 
 export const Navbar = ({
   backendStatus,
@@ -124,6 +125,12 @@ export const Navbar = ({
 
           {currentUser ? (
             <div className="user-nav-group">
+              <NotificationCenter
+                currentUser={currentUser}
+                onNavigateTrack={onNavigateTrack}
+                onNavigateAdmin={onNavigateAdmin}
+                onNavigateOfficer={onNavigateOfficer}
+              />
               <button
                 type="button"
                 className="user-profile-pill"

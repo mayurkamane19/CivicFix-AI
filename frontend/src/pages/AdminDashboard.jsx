@@ -12,6 +12,7 @@ import FeedbackManagement from '../components/admin/FeedbackManagement';
 import SlaManagement from '../components/admin/SlaManagement';
 import AdminComplaintMap from '../components/map/AdminComplaintMap';
 import AnalyticsDashboard from '../components/analytics/AnalyticsDashboard';
+import NotificationCenter from '../components/notifications/NotificationCenter';
 import {
   getAdminStatsApi,
   getAdminComplaintsApi,
@@ -307,6 +308,7 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
             </div>
 
             <div className="admin-header-actions">
+              <NotificationCenter currentUser={currentUser} />
               <button
                 type="button"
                 className="btn btn-outline btn-small"

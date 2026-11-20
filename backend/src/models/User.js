@@ -1,6 +1,19 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
+export const DEFAULT_NOTIFICATION_PREFERENCES = {
+  emailNotifications: true,
+  complaintStatus: true,
+  slaReminders: true,
+  feedbackReminders: true,
+  newAssignments: true,
+  slaAlerts: true,
+  escalationAlerts: true,
+  criticalEscalations: true,
+  departmentAlerts: true,
+  systemAlerts: true
+};
+
 /**
  * User Schema
  * Represents citizens and municipal administrators in CivicFix AI.
@@ -51,6 +64,18 @@ const userSchema = new mongoose.Schema(
     emailNotificationsEnabled: {
       type: Boolean,
       default: false
+    },
+    notificationPreferences: {
+      emailNotifications: { type: Boolean, default: true },
+      complaintStatus: { type: Boolean, default: true },
+      slaReminders: { type: Boolean, default: true },
+      feedbackReminders: { type: Boolean, default: true },
+      newAssignments: { type: Boolean, default: true },
+      slaAlerts: { type: Boolean, default: true },
+      escalationAlerts: { type: Boolean, default: true },
+      criticalEscalations: { type: Boolean, default: true },
+      departmentAlerts: { type: Boolean, default: true },
+      systemAlerts: { type: Boolean, default: true }
     }
   },
   {
@@ -104,6 +129,7 @@ userSchema.methods.toSafeObject = function () {
     } : undefined,
     isActive: this.isActive,
     emailNotificationsEnabled: this.emailNotificationsEnabled === true,
+    notificationPreferences: this.notificationPreferences || { ...DEFAULT_NOTIFICATION_PREFERENCES },
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };
