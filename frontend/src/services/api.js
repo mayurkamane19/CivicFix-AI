@@ -1645,6 +1645,107 @@ export const getOfficerAnalyticsOverviewApi = async (options = {}) => {
   }
 };
 
+/**
+ * ============================================================================
+ * Mini Phase 16: Citizen Feedback & Rating APIs
+ * ============================================================================
+ */
+
+/**
+ * Citizen: POST /api/feedback/:complaintId
+ * Submits citizen rating (1-5) and optional comment for a resolved complaint
+ * @param {string} complaintId
+ * @param {{rating: number, comment?: string}} payload
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const submitFeedbackApi = async (complaintId, { rating, comment = '' } = {}) => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Authentication required to submit feedback' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/feedback/${encodeURIComponent(complaintId)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ rating, comment })
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to submit feedback' };
+    }
+    return { success: true, data: data.feedback };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error submitting feedback' };
+  }
+};
+
+/**
+ * Citizen / Admin: GET /api/feedback/complaint/:complaintId
+ * Retrieves feedback for a specific complaint
+ * @param {string} complaintId
+ * @returns {Promise<{success: boolean, data?: object|null, error?: string}>}
+ */
+export const getComplaintFeedbackApi = async (complaintId) => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Authentication required to retrieve feedback' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/feedback/complaint/${encodeURIComponent(complaintId)}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch complaint feedback' };
+    }
+    return { success: true, data: data.feedback };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error fetching complaint feedback' };
+  }
+};
+
+/**
+ * Citizen: GET /api/feedback/my
+ * Retrieves all feedback submitted by the authenticated citizen
+ * @returns {Promise<{success: boolean, data?: Array<object>, count?: number, error?: string}>}
+ */
+export const getMyFeedbackApi = async () => {
+  try {
+    const token = getStoredToken();
+    if (!token) {
+      return { success: false, error: 'Authentication required to retrieve feedback history' };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/feedback/my`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch citizen feedback history' };
+    }
+    return { success: true, data: data.feedbacks, count: data.count };
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error fetching feedback history' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -1687,6 +1788,9 @@ export default {
   getAdminAnalyticsGeographyApi,
   downloadAdminAnalyticsCsvApi,
   getOfficerAnalyticsOverviewApi,
+  submitFeedbackApi,
+  getComplaintFeedbackApi,
+  getMyFeedbackApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

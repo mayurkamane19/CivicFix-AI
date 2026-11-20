@@ -4,6 +4,7 @@ import {
   analyzeComplaintApi,
   checkDuplicatesApi
 } from '../services/api';
+import FeedbackForm from '../components/feedback/FeedbackForm';
 
 export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, onNavigateHome }) => {
   const [searchId, setSearchId] = useState(initialComplaintId || '');
@@ -767,6 +768,12 @@ export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, 
                   {formattedDate(complaintData.submissionDate || complaintData.createdAt)}
                 </span>
               </div>
+
+              {/* Citizen Resolution Feedback (Active when status is Resolved) */}
+              <FeedbackForm
+                complaintId={complaintData.complaintId}
+                status={complaintData.status}
+              />
             </div>
           </div>
         )}
