@@ -11,7 +11,8 @@ export const DEFAULT_NOTIFICATION_PREFERENCES = {
   escalationAlerts: true,
   criticalEscalations: true,
   departmentAlerts: true,
-  systemAlerts: true
+  systemAlerts: true,
+  resolutionAlerts: true
 };
 
 /**
@@ -75,7 +76,8 @@ const userSchema = new mongoose.Schema(
       escalationAlerts: { type: Boolean, default: true },
       criticalEscalations: { type: Boolean, default: true },
       departmentAlerts: { type: Boolean, default: true },
-      systemAlerts: { type: Boolean, default: true }
+      systemAlerts: { type: Boolean, default: true },
+      resolutionAlerts: { type: Boolean, default: true }
     }
   },
   {

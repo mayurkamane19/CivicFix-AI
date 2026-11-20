@@ -43,6 +43,7 @@ export const OfficerAnalytics = ({ data, loading = false }) => {
               <th>In Progress</th>
               <th>Resolved</th>
               <th>Resolution Rate</th>
+              <th>Citizen Verified</th>
               <th>Avg Turnaround</th>
             </tr>
           </thead>
@@ -82,6 +83,11 @@ export const OfficerAnalytics = ({ data, loading = false }) => {
                   </td>
                   <td>
                     <span className="font-semibold text-emerald">{off.resolutionRate}%</span>
+                  </td>
+                  <td>
+                    <span className="font-semibold text-blue">
+                      {off.verificationRate !== undefined ? `${off.verificationRate}%` : '100%'}
+                    </span>
                   </td>
                   <td>
                     <span className="turnaround-text">

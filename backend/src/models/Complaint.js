@@ -1,5 +1,22 @@
 import mongoose from 'mongoose';
 
+export const RESOLUTION_VERIFICATION_STATUSES = [
+  'Not Submitted',
+  'Awaiting Citizen Verification',
+  'Verified by Citizen',
+  'Rejected by Citizen',
+  'Reopened',
+  'Under Administrative Review'
+];
+
+export const ADMIN_REVIEW_STATUSES = [
+  'Not Required',
+  'Pending',
+  'Approved',
+  'Rejected',
+  'Overridden'
+];
+
 /**
  * Complaint Schema
  * Represents public issues submitted by citizens for municipal resolution.
@@ -72,7 +89,7 @@ const complaintSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['Pending', 'In Progress', 'Resolved'],
+        values: ['Pending', 'In Progress', 'Resolved', 'Reopened'],
         message: '{VALUE} is not a valid complaint status'
       },
       default: 'Pending'
@@ -256,7 +273,7 @@ const complaintSchema = new mongoose.Schema(
         previousStatus: {
           type: String,
           enum: {
-            values: ['Pending', 'In Progress', 'Resolved'],
+            values: ['Pending', 'In Progress', 'Resolved', 'Reopened'],
             message: '{VALUE} is not a valid status'
           },
           required: true
@@ -264,7 +281,7 @@ const complaintSchema = new mongoose.Schema(
         newStatus: {
           type: String,
           enum: {
-            values: ['Pending', 'In Progress', 'Resolved'],
+            values: ['Pending', 'In Progress', 'Resolved', 'Reopened'],
             message: '{VALUE} is not a valid status'
           },
           required: true
@@ -455,6 +472,128 @@ const complaintSchema = new mongoose.Schema(
         trim: true,
         default: 'Within standard resolution window'
       }
+    },
+    resolutionEvidence: {
+      status: {
+        type: String,
+        enum: {
+          values: RESOLUTION_VERIFICATION_STATUSES,
+          message: '{VALUE} is not a valid resolution verification status'
+        },
+        default: 'Not Submitted'
+      },
+      remarks: {
+        type: String,
+        trim: true,
+        maxlength: [1000, 'Resolution remarks cannot exceed 1000 characters'],
+        default: ''
+      },
+      beforeImages: [
+        {
+          url: { type: String, trim: true, required: true },
+          publicId: { type: String, trim: true, default: '' },
+          uploadedAt: { type: Date, default: Date.now },
+          uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          caption: { type: String, trim: true, default: '' }
+        }
+      ],
+      afterImages: [
+        {
+          url: { type: String, trim: true, required: true },
+          publicId: { type: String, trim: true, default: '' },
+          uploadedAt: { type: Date, default: Date.now },
+          uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          caption: { type: String, trim: true, default: '' }
+        }
+      ],
+      submittedAt: {
+        type: Date,
+        default: null
+      },
+      submittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+      },
+      submittedByName: {
+        type: String,
+        trim: true,
+        default: null
+      },
+      citizenVerification: {
+        verifiedAt: { type: Date, default: null },
+        verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        rejectedAt: { type: Date, default: null },
+        rejectionReason: {
+          type: String,
+          trim: true,
+          maxlength: [1000, 'Rejection reason cannot exceed 1000 characters'],
+          default: ''
+        },
+        rejectionEvidence: [
+          {
+            url: { type: String, trim: true, required: true },
+            publicId: { type: String, trim: true, default: '' },
+            uploadedAt: { type: Date, default: Date.now }
+          }
+        ]
+      },
+      reopenCount: {
+        type: Number,
+        default: 0,
+        min: 0
+      },
+      maxReopenLimit: {
+        type: Number,
+        default: 3
+      },
+      reopeningHistory: [
+        {
+          reopenedAt: { type: Date, default: Date.now },
+          citizenId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          citizenEmail: { type: String, default: null },
+          reason: { type: String, required: true, trim: true },
+          evidenceImages: [
+            {
+              url: { type: String, required: true },
+              publicId: { type: String, default: '' }
+            }
+          ],
+          previousStatus: { type: String, default: 'Resolved' },
+          adminReviewRequired: { type: Boolean, default: false }
+        }
+      ],
+      adminReview: {
+        status: {
+          type: String,
+          enum: {
+            values: ADMIN_REVIEW_STATUSES,
+            message: '{VALUE} is not a valid admin review status'
+          },
+          default: 'Not Required'
+        },
+        reviewedAt: { type: Date, default: null },
+        reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        reviewedByName: { type: String, trim: true, default: null },
+        notes: {
+          type: String,
+          trim: true,
+          maxlength: [1000, 'Review notes cannot exceed 1000 characters'],
+          default: ''
+        },
+        actionTaken: { type: String, trim: true, default: null }
+      },
+      verificationHistory: [
+        {
+          action: { type: String, required: true },
+          actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          actorName: { type: String, trim: true, default: '' },
+          actorRole: { type: String, enum: ['citizen', 'officer', 'admin', 'system'], default: 'system' },
+          timestamp: { type: Date, default: Date.now },
+          remarks: { type: String, trim: true, default: '' },
+          metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+        }
+      ]
     }
   },
   {
@@ -480,6 +619,10 @@ complaintSchema.index({ 'sla.status': 1 });
 complaintSchema.index({ 'sla.deadline': 1 });
 complaintSchema.index({ 'sla.currentEscalationLevel': 1 });
 complaintSchema.index({ 'sla.monitoringActive': 1, 'sla.deadline': 1 });
+complaintSchema.index({ 'resolutionEvidence.status': 1 });
+complaintSchema.index({ assignedOfficer: 1, 'resolutionEvidence.status': 1 });
+complaintSchema.index({ 'resolutionEvidence.adminReview.status': 1 });
+complaintSchema.index({ 'resolutionEvidence.reopenCount': 1 });
 
 /**
  * Returns safe public representation of complaint (excluding internal IDs)
@@ -592,6 +735,58 @@ complaintSchema.methods.toPublicJSON = function () {
           )
         }
       : null,
+    resolutionEvidence: this.resolutionEvidence
+      ? {
+          status: this.resolutionEvidence.status || 'Not Submitted',
+          remarks: this.resolutionEvidence.remarks || '',
+          beforeImages: (this.resolutionEvidence.beforeImages || []).map((img) => ({
+            url: img.url,
+            caption: img.caption || '',
+            uploadedAt: img.uploadedAt
+          })),
+          afterImages: (this.resolutionEvidence.afterImages || []).map((img) => ({
+            url: img.url,
+            caption: img.caption || '',
+            uploadedAt: img.uploadedAt
+          })),
+          submittedAt: this.resolutionEvidence.submittedAt || null,
+          submittedByName: this.resolutionEvidence.submittedByName || (this.assignedOfficerName || 'Field Officer'),
+          citizenVerification: this.resolutionEvidence.citizenVerification
+            ? {
+                verifiedAt: this.resolutionEvidence.citizenVerification.verifiedAt || null,
+                rejectedAt: this.resolutionEvidence.citizenVerification.rejectedAt || null,
+                rejectionReason: this.resolutionEvidence.citizenVerification.rejectionReason || null,
+                rejectionEvidence: (this.resolutionEvidence.citizenVerification.rejectionEvidence || []).map((r) => ({
+                  url: r.url,
+                  uploadedAt: r.uploadedAt
+                }))
+              }
+            : null,
+          reopenCount: this.resolutionEvidence.reopenCount || 0,
+          maxReopenLimit: this.resolutionEvidence.maxReopenLimit || 3,
+          reopeningHistory: (this.resolutionEvidence.reopeningHistory || []).map((rh) => ({
+            reopenedAt: rh.reopenedAt,
+            reason: rh.reason,
+            evidenceImages: (rh.evidenceImages || []).map((img) => ({ url: img.url })),
+            previousStatus: rh.previousStatus,
+            adminReviewRequired: Boolean(rh.adminReviewRequired)
+          })),
+          adminReview: this.resolutionEvidence.adminReview
+            ? {
+                status: this.resolutionEvidence.adminReview.status || 'Not Required',
+                reviewedAt: this.resolutionEvidence.adminReview.reviewedAt || null,
+                actionTaken: this.resolutionEvidence.adminReview.actionTaken || null
+              }
+            : null,
+          verificationHistory: (this.resolutionEvidence.verificationHistory || []).map((vh) => ({
+            action: vh.action,
+            actorName: vh.actorName || '',
+            actorRole: vh.actorRole || 'system',
+            timestamp: vh.timestamp,
+            remarks: vh.remarks || ''
+          }))
+        }
+      : null,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };
@@ -669,7 +864,76 @@ complaintSchema.methods.toAdminJSON = function () {
       assignedByName: a.assignedByName || 'Municipal Administrator',
       note: a.note || '',
       assignedAt: a.assignedAt
-    }))
+    })),
+    resolutionEvidence: this.resolutionEvidence
+      ? {
+          status: this.resolutionEvidence.status || 'Not Submitted',
+          remarks: this.resolutionEvidence.remarks || '',
+          beforeImages: (this.resolutionEvidence.beforeImages || []).map((img) => ({
+            url: img.url,
+            publicId: img.publicId || '',
+            caption: img.caption || '',
+            uploadedAt: img.uploadedAt,
+            uploadedBy: img.uploadedBy ? img.uploadedBy.toString() : null
+          })),
+          afterImages: (this.resolutionEvidence.afterImages || []).map((img) => ({
+            url: img.url,
+            publicId: img.publicId || '',
+            caption: img.caption || '',
+            uploadedAt: img.uploadedAt,
+            uploadedBy: img.uploadedBy ? img.uploadedBy.toString() : null
+          })),
+          submittedAt: this.resolutionEvidence.submittedAt || null,
+          submittedBy: this.resolutionEvidence.submittedBy ? this.resolutionEvidence.submittedBy.toString() : null,
+          submittedByName: this.resolutionEvidence.submittedByName || this.assignedOfficerName || null,
+          citizenVerification: this.resolutionEvidence.citizenVerification
+            ? {
+                verifiedAt: this.resolutionEvidence.citizenVerification.verifiedAt || null,
+                verifiedBy: this.resolutionEvidence.citizenVerification.verifiedBy ? this.resolutionEvidence.citizenVerification.verifiedBy.toString() : null,
+                rejectedAt: this.resolutionEvidence.citizenVerification.rejectedAt || null,
+                rejectionReason: this.resolutionEvidence.citizenVerification.rejectionReason || null,
+                rejectionEvidence: (this.resolutionEvidence.citizenVerification.rejectionEvidence || []).map((r) => ({
+                  url: r.url,
+                  publicId: r.publicId || '',
+                  uploadedAt: r.uploadedAt
+                }))
+              }
+            : null,
+          reopenCount: this.resolutionEvidence.reopenCount || 0,
+          maxReopenLimit: this.resolutionEvidence.maxReopenLimit || 3,
+          reopeningHistory: (this.resolutionEvidence.reopeningHistory || []).map((rh) => ({
+            reopenedAt: rh.reopenedAt,
+            citizenId: rh.citizenId ? rh.citizenId.toString() : null,
+            citizenEmail: rh.citizenEmail || null,
+            reason: rh.reason,
+            evidenceImages: (rh.evidenceImages || []).map((img) => ({
+              url: img.url,
+              publicId: img.publicId || ''
+            })),
+            previousStatus: rh.previousStatus,
+            adminReviewRequired: Boolean(rh.adminReviewRequired)
+          })),
+          adminReview: this.resolutionEvidence.adminReview
+            ? {
+                status: this.resolutionEvidence.adminReview.status || 'Not Required',
+                reviewedAt: this.resolutionEvidence.adminReview.reviewedAt || null,
+                reviewedBy: this.resolutionEvidence.adminReview.reviewedBy ? this.resolutionEvidence.adminReview.reviewedBy.toString() : null,
+                reviewedByName: this.resolutionEvidence.adminReview.reviewedByName || null,
+                notes: this.resolutionEvidence.adminReview.notes || '',
+                actionTaken: this.resolutionEvidence.adminReview.actionTaken || null
+              }
+            : null,
+          verificationHistory: (this.resolutionEvidence.verificationHistory || []).map((vh) => ({
+            action: vh.action,
+            actor: vh.actor ? vh.actor.toString() : null,
+            actorName: vh.actorName || '',
+            actorRole: vh.actorRole || 'system',
+            timestamp: vh.timestamp,
+            remarks: vh.remarks || '',
+            metadata: vh.metadata || {}
+          }))
+        }
+      : null
   };
 };
 

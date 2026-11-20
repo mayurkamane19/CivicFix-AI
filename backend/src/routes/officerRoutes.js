@@ -11,6 +11,13 @@ import {
   getOfficerSlaOverview,
   getOfficerEscalations
 } from '../controllers/slaController.js';
+import {
+  getOfficerWorkspaceController,
+  getResolutionEvidenceController,
+  uploadEvidenceController,
+  submitResolutionController
+} from '../controllers/resolutionController.js';
+import { handleEvidenceUpload } from '../middleware/uploadMiddleware.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -18,6 +25,9 @@ const router = Router();
 // Enforce JWT authentication and strict officer role authorization across all endpoints
 router.use(protect);
 router.use(authorize('officer'));
+
+// Officer Workspace & Priority Queue
+router.get('/workspace', getOfficerWorkspaceController);
 
 // GET /api/officer/dashboard/stats
 router.get('/dashboard/stats', getStats);
@@ -27,6 +37,11 @@ router.get('/complaints', getComplaints);
 
 // GET /api/officer/map/complaints
 router.get('/map/complaints', getOfficerMap);
+
+// Resolution Evidence & Submission
+router.get('/complaints/:complaintId/resolution', getResolutionEvidenceController);
+router.post('/complaints/:complaintId/resolution/evidence', handleEvidenceUpload, uploadEvidenceController);
+router.post('/complaints/:complaintId/resolution/submit', handleEvidenceUpload, submitResolutionController);
 
 // GET /api/officer/complaints/:complaintId
 router.get('/complaints/:complaintId', getComplaintById);

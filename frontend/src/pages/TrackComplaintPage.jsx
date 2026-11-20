@@ -5,6 +5,7 @@ import {
   checkDuplicatesApi
 } from '../services/api';
 import FeedbackForm from '../components/feedback/FeedbackForm';
+import ResolutionVerificationCard from '../components/resolution/ResolutionVerificationCard';
 
 export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, onNavigateHome }) => {
   const [searchId, setSearchId] = useState(initialComplaintId || '');
@@ -856,6 +857,13 @@ export const TrackComplaintPage = ({ initialComplaintId = '', onNavigateReport, 
                   {formattedDate(complaintData.submissionDate || complaintData.createdAt)}
                 </span>
               </div>
+
+              {/* Citizen Resolution Evidence Inspection & Verification */}
+              <ResolutionVerificationCard
+                complaint={complaintData}
+                resolutionEvidence={complaintData.resolutionEvidence}
+                onStatusUpdated={() => fetchComplaint(complaintData.complaintId)}
+              />
 
               {/* Citizen Resolution Feedback (Active when status is Resolved) */}
               <FeedbackForm

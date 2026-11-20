@@ -2364,6 +2364,346 @@ export const getOfficerEscalationsApi = async () => {
   }
 };
 
+/**
+ * Phase 19: Officer Workspace & Priority Queue API
+ * @param {object} params
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getOfficerWorkspaceApi = async (params = {}) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.append(k, v);
+    });
+
+    const res = await fetch(`${API_BASE_URL}/api/officer/workspace?${qs.toString()}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch officer workspace' };
+    }
+    return {
+      success: true,
+      data: {
+        metrics: data.metrics,
+        complaints: data.complaints,
+        pagination: data.pagination
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching officer workspace' };
+  }
+};
+
+/**
+ * Phase 19: Upload Resolution Evidence Photos
+ * @param {string} complaintId
+ * @param {FormData} formData
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const uploadResolutionEvidenceApi = async (complaintId, formData) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/officer/complaints/${encodeURIComponent(complaintId)}/resolution/evidence`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to upload resolution evidence' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error uploading resolution evidence' };
+  }
+};
+
+/**
+ * Phase 19: Submit Officer Resolution Evidence and Mark Resolved
+ * @param {string} complaintId
+ * @param {FormData|object} payload
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const submitOfficerResolutionApi = async (complaintId, payload) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const isFormData = payload instanceof FormData;
+    const headers = {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const res = await fetch(`${API_BASE_URL}/api/officer/complaints/${encodeURIComponent(complaintId)}/resolution/submit`, {
+      method: 'POST',
+      headers,
+      body: isFormData ? payload : JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to submit officer resolution' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error submitting officer resolution' };
+  }
+};
+
+/**
+ * Phase 19: Fetch Resolution Details (for citizen verification or admin inspection)
+ * @param {string} complaintId
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getComplaintResolutionApi = async (complaintId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/complaints/${encodeURIComponent(complaintId)}/resolution`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch resolution details' };
+    }
+    return { success: true, data: data.resolution || data.data?.resolution };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching resolution details' };
+  }
+};
+
+/**
+ * Phase 19: Citizen Verifies and Confirms Resolution
+ * @param {string} complaintId
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const verifyResolutionApi = async (complaintId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/complaints/${encodeURIComponent(complaintId)}/resolution/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to verify resolution' };
+    }
+    return { success: true, message: data.message, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error verifying resolution' };
+  }
+};
+
+/**
+ * Phase 19: Citizen Rejects Resolution and Reopens Complaint
+ * @param {string} complaintId
+ * @param {FormData|object} payload
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const rejectResolutionApi = async (complaintId, payload) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const isFormData = payload instanceof FormData;
+    const headers = {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const res = await fetch(`${API_BASE_URL}/api/complaints/${encodeURIComponent(complaintId)}/resolution/reject`, {
+      method: 'POST',
+      headers,
+      body: isFormData ? payload : JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to contest resolution' };
+    }
+    return { success: true, message: data.message, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error contesting resolution' };
+  }
+};
+
+/**
+ * Phase 19: Admin Resolutions List
+ * @param {object} params
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getAdminResolutionsApi = async (params = {}) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.append(k, v);
+    });
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/resolutions?${qs.toString()}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch administrative resolutions' };
+    }
+    return {
+      success: true,
+      data: {
+        resolutions: data.resolutions || [],
+        pagination: data.pagination
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching resolutions list' };
+  }
+};
+
+/**
+ * Phase 19: Admin Resolution Overview Stats
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getAdminResolutionStatsApi = async () => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/admin/resolutions/stats`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch resolution stats' };
+    }
+    return { success: true, data: data.stats || data.data?.stats };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching resolution stats' };
+  }
+};
+
+/**
+ * Phase 19: Admin Resolution Details
+ * @param {string} complaintId
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getAdminResolutionDetailsApi = async (complaintId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/admin/resolutions/${encodeURIComponent(complaintId)}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch resolution details' };
+    }
+    return { success: true, data: data.resolution || data.data?.resolution };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching resolution details' };
+  }
+};
+
+/**
+ * Phase 19: Admin Review Disputed Resolution
+ * @param {string} complaintId
+ * @param {object} reviewData
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const reviewAdminResolutionApi = async (complaintId, reviewData) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/admin/resolutions/${encodeURIComponent(complaintId)}/review`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(reviewData)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to review resolution' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error reviewing resolution' };
+  }
+};
+
+/**
+ * Phase 19: Field Officer Performance Analytics
+ * @param {object} params
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getOfficerPerformanceAnalyticsApi = async (params = {}) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.append(k, v);
+    });
+
+    const res = await fetch(`${API_BASE_URL}/api/admin/analytics/officers/performance?${qs.toString()}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch officer performance analytics' };
+    }
+    return { success: true, data: data.analytics || data.data?.analytics || [] };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching officer performance analytics' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -2429,6 +2769,17 @@ export default {
   triggerSlaEvaluationApi,
   getOfficerSlaOverviewApi,
   getOfficerEscalationsApi,
+  getOfficerWorkspaceApi,
+  uploadResolutionEvidenceApi,
+  submitOfficerResolutionApi,
+  getComplaintResolutionApi,
+  verifyResolutionApi,
+  rejectResolutionApi,
+  getAdminResolutionsApi,
+  getAdminResolutionStatsApi,
+  getAdminResolutionDetailsApi,
+  reviewAdminResolutionApi,
+  getOfficerPerformanceAnalyticsApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

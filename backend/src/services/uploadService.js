@@ -13,29 +13,33 @@ export const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
  * @returns {{isValid: boolean, format: string|null}}
  */
 export const validateImageBuffer = (buffer) => {
-  if (!buffer || !Buffer.isBuffer(buffer) || buffer.length < 12) {
-    return { isValid: false, format: null };
+  if (!buffer || !Buffer.isBuffer(buffer) || buffer.length < 4) {
+    return { isValid: false, format: null, mimeType: null };
   }
 
   // 1. Check JPEG (SOI marker: 0xFF, 0xD8, 0xFF)
   if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
-    return { isValid: true, format: 'jpeg' };
+    return { isValid: true, format: 'jpeg', mimeType: 'image/jpeg' };
   }
 
   // 2. Check PNG (0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
-  const pngHeader = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  if (buffer.subarray(0, 8).equals(pngHeader)) {
-    return { isValid: true, format: 'png' };
+  if (buffer.length >= 8) {
+    const pngHeader = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    if (buffer.subarray(0, 8).equals(pngHeader)) {
+      return { isValid: true, format: 'png', mimeType: 'image/png' };
+    }
   }
 
   // 3. Check WebP (RIFF header + WEBP sub-header at offset 8)
-  const isRiff = buffer.subarray(0, 4).toString('ascii') === 'RIFF';
-  const isWebp = buffer.subarray(8, 12).toString('ascii') === 'WEBP';
-  if (isRiff && isWebp) {
-    return { isValid: true, format: 'webp' };
+  if (buffer.length >= 12) {
+    const isRiff = buffer.subarray(0, 4).toString('ascii') === 'RIFF';
+    const isWebp = buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+    if (isRiff && isWebp) {
+      return { isValid: true, format: 'webp', mimeType: 'image/webp' };
+    }
   }
 
-  return { isValid: false, format: null };
+  return { isValid: false, format: null, mimeType: null };
 };
 
 /**
@@ -69,6 +73,15 @@ export const upload = multer({
   limits: {
     fileSize: MAX_FILE_SIZE_BYTES,
     files: 1
+  },
+  fileFilter
+});
+
+export const uploadMulti = multer({
+  storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE_BYTES,
+    files: 5
   },
   fileFilter
 });
@@ -151,6 +164,33 @@ export const uploadImageToCloudinary = async (buffer, originalname = 'complaint-
 };
 
 /**
+ * Uploads multiple image buffers to Cloudinary with rollback on error
+ * @param {Array<{buffer: Buffer, originalname?: string}>} files
+ * @returns {Promise<Array<{secure_url: string, public_id: string, format: string, bytes: number}>>}
+ */
+export const uploadMultipleImagesToCloudinary = async (files = []) => {
+  if (!Array.isArray(files) || files.length === 0) return [];
+
+  const uploadedResults = [];
+  try {
+    for (const file of files) {
+      if (!file || !file.buffer) continue;
+      const res = await uploadImageToCloudinary(file.buffer, file.originalname || 'evidence-image');
+      uploadedResults.push(res);
+    }
+    return uploadedResults;
+  } catch (error) {
+    // Rollback any successfully uploaded images to prevent orphaned storage
+    for (const item of uploadedResults) {
+      if (item.public_id) {
+        await deleteImageFromCloudinary(item.public_id);
+      }
+    }
+    throw error;
+  }
+};
+
+/**
  * Deletes an uploaded image from Cloudinary (used for rollback if database save fails)
  * @param {string} publicId
  * @returns {Promise<object|null>}
@@ -171,8 +211,10 @@ export const deleteImageFromCloudinary = async (publicId) => {
 
 export default {
   upload,
+  uploadMulti,
   validateImageBuffer,
   uploadImageToCloudinary,
+  uploadMultipleImagesToCloudinary,
   deleteImageFromCloudinary,
   MAX_FILE_SIZE_BYTES,
   ALLOWED_MIME_TYPES,

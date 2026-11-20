@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import OfficerComplaintMap from '../components/map/OfficerComplaintMap';
 import NotificationCenter from '../components/notifications/NotificationCenter';
+import OfficerResolutionModal from '../components/resolution/OfficerResolutionModal';
 import {
   getOfficerStatsApi,
   getOfficerComplaintsApi,
   getOfficerComplaintDetailsApi,
   updateOfficerComplaintStatusApi,
   getOfficerAnalyticsOverviewApi,
-  getOfficerSlaOverviewApi
+  getOfficerSlaOverviewApi,
+  getOfficerWorkspaceApi
 } from '../services/api';
 
 /**
@@ -53,17 +55,23 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusError, setStatusError] = useState(null);
 
+  // Resolution Evidence Modal State
+  const [resolutionModalOpen, setResolutionModalOpen] = useState(false);
+  const [resolutionComplaint, setResolutionComplaint] = useState(null);
+  const [workspaceMetrics, setWorkspaceMetrics] = useState(null);
+
   // Feedback State
   const [feedback, setFeedback] = useState(null);
   const [slaMetrics, setSlaMetrics] = useState(null);
 
-  // 1. Fetch Officer Dashboard Stats
+  // 1. Fetch Officer Dashboard Stats & Workspace Metrics
   const fetchStats = useCallback(async () => {
     if (!isOfficer) return;
     setStatsLoading(true);
-    const [res, slaRes] = await Promise.all([
+    const [res, slaRes, wsRes] = await Promise.all([
       getOfficerStatsApi(),
-      getOfficerSlaOverviewApi()
+      getOfficerSlaOverviewApi(),
+      getOfficerWorkspaceApi()
     ]);
     setStatsLoading(false);
 
@@ -72,6 +80,9 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
     }
     if (slaRes.success && slaRes.data) {
       setSlaMetrics(slaRes.data.metrics);
+    }
+    if (wsRes.success && wsRes.data) {
+      setWorkspaceMetrics(wsRes.data.metrics);
     }
   }, [isOfficer]);
 
@@ -191,15 +202,28 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
     }
   };
 
-  const getStatusBadge = (st) => {
-    switch (st) {
-      case 'Resolved':
-        return <span className="status-badge badge-resolved">Resolved</span>;
-      case 'In Progress':
-        return <span className="status-badge badge-in-progress">In Progress</span>;
-      default:
-        return <span className="status-badge badge-pending">Pending</span>;
+  const getStatusBadge = (st, complaint = null) => {
+    const vStatus = complaint?.resolutionEvidence?.status;
+    if (st === 'Resolved') {
+      if (vStatus === 'Verified by Citizen') {
+        return <span className="status-badge badge-verified">✓ Verified</span>;
+      }
+      if (vStatus === 'Awaiting Citizen Verification') {
+        return <span className="status-badge badge-awaiting">⏳ Awaiting Verification</span>;
+      }
+      return <span className="status-badge badge-resolved">Resolved</span>;
     }
+    if (st === 'Reopened') {
+      return (
+        <span className="status-badge badge-reopened">
+          ↻ Reopened {complaint?.resolutionEvidence?.reopenCount ? `(${complaint.resolutionEvidence.reopenCount})` : ''}
+        </span>
+      );
+    }
+    if (st === 'In Progress') {
+      return <span className="status-badge badge-in-progress">In Progress</span>;
+    }
+    return <span className="status-badge badge-pending">Pending</span>;
   };
 
   // Access Denied Screen
@@ -628,15 +652,28 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
                             </span>
                           </td>
                           <td className="cell-date">{formatDate(c.assignedAt || c.createdAt)}</td>
-                          <td>{getStatusBadge(c.status)}</td>
+                          <td>{getStatusBadge(c.status, c)}</td>
                           <td className="cell-actions">
                             <button
                               type="button"
                               className="btn btn-primary btn-small"
                               onClick={() => handleOpenDetails(c)}
                             >
-                              Inspect &amp; Update
+                              Inspect
                             </button>
+                            {c.status !== 'Resolved' && (
+                              <button
+                                type="button"
+                                className="btn btn-success btn-small"
+                                style={{ marginLeft: '6px' }}
+                                onClick={() => {
+                                  setResolutionComplaint(c);
+                                  setResolutionModalOpen(true);
+                                }}
+                              >
+                                📷 Resolve
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -853,6 +890,18 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
             </div>
 
             <div className="modal-footer">
+              {selectedComplaint.status !== 'Resolved' && (
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={() => {
+                    setResolutionComplaint(selectedComplaint);
+                    setResolutionModalOpen(true);
+                  }}
+                >
+                  📷 Submit Resolution Evidence
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -864,6 +913,25 @@ export const OfficerDashboard = ({ currentUser, onNavigateHome, onNavigateLogin 
           </div>
         </div>
       )}
+
+      {/* Field Officer Resolution Evidence Upload Modal */}
+      <OfficerResolutionModal
+        complaint={resolutionComplaint}
+        isOpen={resolutionModalOpen}
+        onClose={() => {
+          setResolutionModalOpen(false);
+          setResolutionComplaint(null);
+        }}
+        onSuccess={() => {
+          setFeedback({
+            type: 'success',
+            message: 'Resolution evidence submitted successfully. Awaiting citizen confirmation.'
+          });
+          setDetailModalOpen(false);
+          fetchStats();
+          fetchComplaints();
+        }}
+      />
     </div>
   );
 };

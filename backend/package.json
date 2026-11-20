@@ -34,6 +34,8 @@
     "test:sla-ui": "node test-sla-ui.js",
     "test:notifications-center": "node test-notifications-backend.js",
     "test:notifications-ui": "node test-notifications-ui.js",
+    "test:resolution-backend": "node test-resolution-backend.js",
+    "test:resolution-ui": "node test-resolution-ui.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:officer": "node scripts/seedOfficer.js"

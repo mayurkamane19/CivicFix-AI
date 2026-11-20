@@ -13,6 +13,7 @@ import SlaManagement from '../components/admin/SlaManagement';
 import AdminComplaintMap from '../components/map/AdminComplaintMap';
 import AnalyticsDashboard from '../components/analytics/AnalyticsDashboard';
 import NotificationCenter from '../components/notifications/NotificationCenter';
+import AdminResolutionReviewTab from '../components/resolution/AdminResolutionReviewTab';
 import {
   getAdminStatsApi,
   getAdminComplaintsApi,
@@ -408,6 +409,13 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
             >
               ⏱️ SLA &amp; Escalations
             </button>
+            <button
+              type="button"
+              className={`admin-tab-btn ${activeTab === 'resolutions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('resolutions')}
+            >
+              📷 Resolution Verification
+            </button>
           </nav>
         </div>
       </header>
@@ -609,6 +617,13 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
         {activeTab === 'sla' && (
           <div className="admin-sla-section">
             <SlaManagement onViewDetails={handleViewDetails} />
+          </div>
+        )}
+
+        {/* TAB 9: RESOLUTION VERIFICATION & DISPUTES */}
+        {activeTab === 'resolutions' && (
+          <div className="admin-resolutions-section">
+            <AdminResolutionReviewTab />
           </div>
         )}
       </main>

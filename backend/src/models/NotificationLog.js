@@ -14,7 +14,11 @@ export const NOTIFICATION_EVENT_TYPES = [
   'SLA_ESCALATION_LEVEL_3',
   'MANUAL_ESCALATION',
   'FEEDBACK_RECEIVED',
-  'SYSTEM_ANNOUNCEMENT'
+  'SYSTEM_ANNOUNCEMENT',
+  'RESOLUTION_SUBMITTED',
+  'RESOLUTION_VERIFIED',
+  'RESOLUTION_REJECTED',
+  'ADMIN_REVIEW_REQUIRED'
 ];
 
 export const NOTIFICATION_CATEGORIES = [
@@ -48,6 +52,9 @@ export const mapEventToCategory = (eventType) => {
     case 'OFFICER_ASSIGNED':
       return 'assignment';
     case 'COMPLAINT_RESOLVED':
+    case 'RESOLUTION_SUBMITTED':
+    case 'RESOLUTION_VERIFIED':
+    case 'RESOLUTION_REJECTED':
       return 'resolution';
     case 'COMPLAINT_REOPENED':
       return 'reopened';
@@ -59,6 +66,7 @@ export const mapEventToCategory = (eventType) => {
     case 'SLA_ESCALATION_LEVEL_2':
     case 'SLA_ESCALATION_LEVEL_3':
     case 'MANUAL_ESCALATION':
+    case 'ADMIN_REVIEW_REQUIRED':
       return 'escalation';
     case 'FEEDBACK_RECEIVED':
       return 'feedback';

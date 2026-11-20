@@ -39,6 +39,13 @@ import {
   manualEscalateController,
   triggerSlaEvaluation
 } from '../controllers/slaController.js';
+import {
+  getAdminResolutionsController,
+  getAdminResolutionStatsController,
+  getResolutionEvidenceController,
+  reviewResolutionController,
+  getOfficerPerformanceAnalyticsController
+} from '../controllers/resolutionController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -96,5 +103,12 @@ router.post('/sla/evaluate', triggerSlaEvaluation);
 router.get('/escalations', getAdminEscalationLogs);
 router.get('/escalations/:complaintId', getComplaintEscalationHistory);
 router.post('/escalations/:complaintId/manual', manualEscalateController);
+
+// Resolution Verification & Administrative Dispute Reviews (Admin Only)
+router.get('/resolutions/stats', getAdminResolutionStatsController);
+router.get('/resolutions', getAdminResolutionsController);
+router.get('/resolutions/:complaintId', getResolutionEvidenceController);
+router.post('/resolutions/:complaintId/review', reviewResolutionController);
+router.get('/analytics/officers/performance', getOfficerPerformanceAnalyticsController);
 
 export default router;

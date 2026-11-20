@@ -6,7 +6,13 @@ import {
   checkDuplicates,
   getPublicMap
 } from '../controllers/complaintController.js';
-import { handleImageUpload } from '../middleware/uploadMiddleware.js';
+import {
+  getResolutionEvidenceController,
+  verifyResolutionController,
+  rejectResolutionController
+} from '../controllers/resolutionController.js';
+import { handleImageUpload, handleEvidenceUpload } from '../middleware/uploadMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -18,6 +24,11 @@ router.post('/', handleImageUpload, submitComplaint);
 
 // Public complaint tracking
 router.get('/track/:complaintId', trackComplaint);
+
+// Citizen Resolution Verification endpoints (Authenticated & Anti-IDOR protected)
+router.get('/:complaintId/resolution', protect, getResolutionEvidenceController);
+router.post('/:complaintId/resolution/verify', protect, verifyResolutionController);
+router.post('/:complaintId/resolution/reject', protect, handleEvidenceUpload, rejectResolutionController);
 
 // Dedicated AI analysis trigger / re-fetch
 router.post('/:complaintId/analyze', analyzeComplaint);
