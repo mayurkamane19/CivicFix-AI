@@ -52,7 +52,9 @@ const MyComplaintsPage = ({
   initialStatus = '',
   onViewComplaint,
   onNavigateDashboard,
-  onNavigateReport
+  onNavigateReport,
+  onOpenDrafts,
+  draftCount = 0
 }) => {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +130,16 @@ const MyComplaintsPage = ({
               Manage and track all public issues you have reported
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+            {draftCount > 0 && onOpenDrafts && (
+              <button
+                className="mcp-back-btn"
+                style={{ background: '#fef3c7', borderColor: '#fcd34d', color: '#78350f' }}
+                onClick={onOpenDrafts}
+              >
+                💾 Drafts ({draftCount})
+              </button>
+            )}
             {onNavigateDashboard && (
               <button className="mcp-back-btn" onClick={onNavigateDashboard}>
                 ← Dashboard

@@ -1,4 +1,5 @@
 import { User } from '../models/User.js';
+import { PushSubscription } from '../models/PushSubscription.js';
 import {
   getUserNotifications,
   getUserUnreadCount,
@@ -218,6 +219,86 @@ export const getAdminNotifications = async (req, res, next) => {
   }
 };
 
+/**
+ * Controller: GET /api/notifications/push/public-key
+ * Returns VAPID public key for Web Push subscription
+ */
+export const getPushPublicKey = async (req, res, next) => {
+  try {
+    const publicKey = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZElO7BpwtGN_4v89zN83v_5N1xXp29eJ7wF9K0';
+    return successResponse(res, 200, 'VAPID public key retrieved successfully', { publicKey });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controller: POST /api/notifications/push/subscribe
+ * Registers or updates a browser Web Push subscription for authenticated user
+ */
+export const subscribePush = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { endpoint, keys, userAgent } = req.body;
+
+    if (!endpoint || typeof endpoint !== 'string' || !endpoint.startsWith('http')) {
+      return errorResponse(res, 400, 'Valid push subscription endpoint URL is required');
+    }
+
+    if (!keys || typeof keys !== 'object' || !keys.p256dh || !keys.auth) {
+      return errorResponse(res, 400, 'Push keys with valid p256dh and auth components are required');
+    }
+
+    const subscription = await PushSubscription.findOneAndUpdate(
+      { endpoint },
+      {
+        user: userId,
+        endpoint,
+        keys: {
+          p256dh: String(keys.p256dh).trim(),
+          auth: String(keys.auth).trim()
+        },
+        userAgent: userAgent ? String(userAgent).slice(0, 500) : ''
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    return successResponse(res, 201, 'Push notification subscription registered successfully', {
+      subscriptionId: subscription._id
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controller: POST /api/notifications/push/unsubscribe
+ * Removes browser push subscription belonging to the authenticated user (anti-IDOR)
+ */
+export const unsubscribePush = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { endpoint } = req.body;
+
+    if (!endpoint || typeof endpoint !== 'string') {
+      return errorResponse(res, 400, 'Subscription endpoint is required to unsubscribe');
+    }
+
+    const result = await PushSubscription.findOneAndDelete({
+      endpoint,
+      user: userId
+    });
+
+    if (!result) {
+      return successResponse(res, 200, 'Subscription already removed or not found', { unsubscribed: true });
+    }
+
+    return successResponse(res, 200, 'Push notification subscription removed successfully', { unsubscribed: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getNotifications,
   getUnreadCount,
@@ -228,5 +309,8 @@ export default {
   getPreferences,
   updatePreferences,
   broadcastAnnouncement,
-  getAdminNotifications
+  getAdminNotifications,
+  getPushPublicKey,
+  subscribePush,
+  unsubscribePush
 };

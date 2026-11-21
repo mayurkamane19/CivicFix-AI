@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { submitComplaintApi, checkDuplicatesApi } from '../services/api';
+import { saveDraft } from '../utils/indexedDb';
 import './MultiStepReportPage.css';
 
 const CATEGORIES = [
@@ -15,20 +16,28 @@ const CATEGORIES = [
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
-const MultiStepReportPage = ({ onNavigateTrack, onNavigateHome, onNavigateDashboard }) => {
+const MultiStepReportPage = ({
+  currentUser = null,
+  initialDraft = null,
+  onDraftSaved = null,
+  onNavigateTrack,
+  onNavigateHome,
+  onNavigateDashboard
+}) => {
   const [step, setStep] = useState(1);
 
-  // Form State
-  const [category, setCategory] = useState('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [severity, setSeverity] = useState('Medium');
+  // Form State (initialized from initialDraft if resuming)
+  const [category, setCategory] = useState(initialDraft?.category || '');
+  const [title, setTitle] = useState(initialDraft?.title || '');
+  const [description, setDescription] = useState(initialDraft?.description || '');
+  const [severity, setSeverity] = useState(initialDraft?.severity || 'Medium');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
-  const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
+  const [filePreview, setFilePreview] = useState(initialDraft?.photoData || null);
+  const [address, setAddress] = useState(initialDraft?.address || '');
+  const [latitude, setLatitude] = useState(initialDraft?.latitude || '');
+  const [longitude, setLongitude] = useState(initialDraft?.longitude || '');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [draftSavedToast, setDraftSavedToast] = useState(false);
 
   // Status & Validation State
   const [errors, setErrors] = useState({});
@@ -177,6 +186,31 @@ const MultiStepReportPage = ({ onNavigateTrack, onNavigateHome, onNavigateDashbo
     }
   };
 
+  // Save draft locally to IndexedDB
+  const handleSaveDraft = async () => {
+    try {
+      const draftPayload = {
+        id: initialDraft?.id,
+        title,
+        category,
+        description,
+        severity,
+        address,
+        latitude,
+        longitude,
+        photoData: filePreview,
+        photoName: selectedFile?.name || initialDraft?.photoName
+      };
+
+      await saveDraft(draftPayload, currentUser?.email || 'guest');
+      setDraftSavedToast(true);
+      setTimeout(() => setDraftSavedToast(false), 3000);
+      if (onDraftSaved) onDraftSaved();
+    } catch (err) {
+      alert('Could not save draft locally: ' + err.message);
+    }
+  };
+
   // Final Submission
   const handleSubmit = async () => {
     if (!acceptedTerms) {
@@ -186,6 +220,35 @@ const MultiStepReportPage = ({ onNavigateTrack, onNavigateHome, onNavigateDashbo
 
     setSubmitting(true);
     setSubmitError('');
+
+    // Offline Interception Guard
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const draftPayload = {
+          id: initialDraft?.id,
+          title,
+          category,
+          description,
+          severity,
+          address,
+          latitude,
+          longitude,
+          photoData: filePreview,
+          photoName: selectedFile?.name || initialDraft?.photoName
+        };
+        await saveDraft(draftPayload, currentUser?.email || 'guest');
+        setSubmitting(false);
+        setSubmitError(
+          'You are currently offline. Your report has been saved securely as an offline draft in IndexedDB. You can review and submit it when reconnected.'
+        );
+        if (onDraftSaved) onDraftSaved();
+        return;
+      } catch (err) {
+        setSubmitting(false);
+        setSubmitError('Offline save failed: ' + err.message);
+        return;
+      }
+    }
 
     try {
       let res;
@@ -582,17 +645,30 @@ const MultiStepReportPage = ({ onNavigateTrack, onNavigateHome, onNavigateDashbo
         {/* Footer Navigation (steps 1-5) */}
         {step < 6 && (
           <div className="msr-nav-footer">
-            {step > 1 ? (
-              <button type="button" className="msr-btn-back" onClick={handleBack}>
-                ← Back
-              </button>
-            ) : onNavigateDashboard ? (
-              <button type="button" className="msr-btn-back" onClick={onNavigateDashboard}>
-                ✕ Cancel
-              </button>
-            ) : (
-              <div />
-            )}
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              {step > 1 ? (
+                <button type="button" className="msr-btn-back" onClick={handleBack}>
+                  ← Back
+                </button>
+              ) : onNavigateDashboard ? (
+                <button type="button" className="msr-btn-back" onClick={onNavigateDashboard}>
+                  ✕ Cancel
+                </button>
+              ) : (
+                <div />
+              )}
+              {(title || category) && (
+                <button
+                  type="button"
+                  className="msr-btn-back"
+                  style={{ fontSize: '0.8rem', padding: '0.5rem 0.8rem' }}
+                  onClick={handleSaveDraft}
+                  title="Save progress to offline IndexedDB storage"
+                >
+                  {draftSavedToast ? '✓ Saved!' : '💾 Save Draft'}
+                </button>
+              )}
+            </div>
 
             {step < 5 ? (
               <button type="button" className="msr-btn-next" onClick={handleNext}>

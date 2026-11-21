@@ -15,6 +15,10 @@ import CitizenComplaintDetailsPage from './CitizenComplaintDetailsPage';
 import MultiStepReportPage from './MultiStepReportPage';
 import CitizenProfilePage from './CitizenProfilePage';
 import UserProfile from '../components/UserProfile';
+import OfflineBanner from '../components/pwa/OfflineBanner';
+import InstallPwaPrompt from '../components/pwa/InstallPwaPrompt';
+import DraftsManagerModal from '../components/pwa/DraftsManagerModal';
+import { getDraftCount } from '../utils/indexedDb';
 import { checkHealth, getMeApi, getStoredUser, clearSession } from '../services/api';
 
 export const LandingPage = () => {
@@ -28,6 +32,24 @@ export const LandingPage = () => {
   const [trackComplaintId, setTrackComplaintId] = useState('');
   const [initialComplaintFilter, setInitialComplaintFilter] = useState('');
   const [detailsComplaintId, setDetailsComplaintId] = useState('');
+
+  // PWA & Offline Drafts State
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [draftCount, setDraftCount] = useState(0);
+  const [editingDraft, setEditingDraft] = useState(null);
+
+  const refreshDraftCount = useCallback(async () => {
+    try {
+      const count = await getDraftCount(currentUser?.email || 'guest');
+      setDraftCount(count);
+    } catch {
+      // IndexedDB optional
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    refreshDraftCount();
+  }, [refreshDraftCount]);
 
   // Verify backend health
   const verifyBackendConnection = useCallback(async () => {
@@ -104,6 +126,7 @@ export const LandingPage = () => {
     setCurrentView('complaint-details');
   };
   const handleNavigateReport = () => {
+    setEditingDraft(null);
     if (currentUser?.role === 'citizen') {
       setCurrentView('report-new');
     } else {
@@ -111,8 +134,19 @@ export const LandingPage = () => {
     }
   };
 
+  const handleEditDraft = (draft) => {
+    setEditingDraft(draft);
+    setCurrentView('report-new');
+  };
+
   return (
     <div className="app-layout">
+      {/* Real-Time PWA Offline/Online Banner */}
+      <OfflineBanner
+        onOpenDrafts={() => setShowDraftsModal(true)}
+        draftCount={draftCount}
+      />
+
       {/* Top Navigation */}
       <Navbar
         backendStatus={backendStatus}
@@ -193,6 +227,7 @@ export const LandingPage = () => {
             currentUser={currentUser}
             onNavigateReport={() => setCurrentView('report-new')}
             onNavigateMyComplaints={(filter) => handleNavigateMyComplaints(filter)}
+            onOpenDrafts={() => setShowDraftsModal(true)}
             onNavigateHome={() => setCurrentView('home')}
           />
         )}
@@ -203,6 +238,8 @@ export const LandingPage = () => {
             onViewComplaint={handleViewComplaintDetails}
             onNavigateDashboard={handleNavigateCitizen}
             onNavigateReport={() => setCurrentView('report-new')}
+            onOpenDrafts={() => setShowDraftsModal(true)}
+            draftCount={draftCount}
           />
         )}
 
@@ -217,6 +254,9 @@ export const LandingPage = () => {
 
         {currentView === 'report-new' && (
           <MultiStepReportPage
+            currentUser={currentUser}
+            initialDraft={editingDraft}
+            onDraftSaved={refreshDraftCount}
             onNavigateTrack={handleNavigateTrack}
             onNavigateHome={() => setCurrentView('home')}
             onNavigateDashboard={handleNavigateCitizen}
@@ -357,6 +397,18 @@ export const LandingPage = () => {
           </>
         )}
       </main>
+
+      {/* PWA Custom Install Prompt Banner */}
+      <InstallPwaPrompt />
+
+      {/* Offline Drafts Management Modal */}
+      <DraftsManagerModal
+        isOpen={showDraftsModal}
+        onClose={() => setShowDraftsModal(false)}
+        currentUser={currentUser}
+        onEditDraft={handleEditDraft}
+        onDraftSubmitted={refreshDraftCount}
+      />
 
       {/* Footer */}
       <Footer />

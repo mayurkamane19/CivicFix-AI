@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import StatCard from '../components/citizen/StatCard';
 import StatusBadge from '../components/citizen/StatusBadge';
 import { getCitizenDashboardApi } from '../services/api';
+import { getDraftCount } from '../utils/indexedDb';
 import './CitizenDashboard.css';
 
 const formatDate = (dateStr) => {
@@ -91,11 +92,13 @@ const CitizenDashboard = ({
   currentUser,
   onNavigateReport,
   onNavigateMyComplaints,
+  onOpenDrafts,
   onNavigateHome
 }) => {
   const [dashData, setDashData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [draftCount, setDraftCount] = useState(0);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -107,7 +110,14 @@ const CitizenDashboard = ({
     } else {
       setError(res.error || 'Failed to load dashboard');
     }
-  }, []);
+
+    try {
+      const count = await getDraftCount(currentUser?.email || 'guest');
+      setDraftCount(count);
+    } catch {
+      // IndexedDB optional
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     fetchDashboard();
@@ -142,6 +152,15 @@ const CitizenDashboard = ({
             <div className="cd-welcome-date">{todayLabel()}</div>
           </div>
           <div className="cd-header-actions">
+            {draftCount > 0 && onOpenDrafts && (
+              <button
+                className="cd-btn cd-btn-outline"
+                style={{ background: '#fef3c7', borderColor: '#fcd34d', color: '#78350f' }}
+                onClick={onOpenDrafts}
+              >
+                💾 Drafts ({draftCount})
+              </button>
+            )}
             <button className="cd-btn cd-btn-primary" onClick={onNavigateReport}>
               ➕ Report New Issue
             </button>
@@ -230,6 +249,16 @@ const CitizenDashboard = ({
         <div className="cd-section">
           <div className="cd-section-title">⚡ Quick Actions</div>
           <div className="cd-quick-actions">
+            {draftCount > 0 && onOpenDrafts && (
+              <div className="cd-action-card" onClick={onOpenDrafts}>
+                <div className="cd-action-icon" style={{ background: '#fef3c7', color: '#b45309' }}>
+                  💾
+                </div>
+                <div className="cd-action-label">Offline Drafts ({draftCount})</div>
+                <div className="cd-action-desc">Review and submit saved issue drafts</div>
+              </div>
+            )}
+
             <div className="cd-action-card" onClick={onNavigateReport}>
               <div className="cd-action-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
                 📝

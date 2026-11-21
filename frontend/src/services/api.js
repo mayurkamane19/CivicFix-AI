@@ -2819,6 +2819,93 @@ export const updateMyProfileApi = async (profileData) => {
   }
 };
 
+/**
+ * Phase 21: Get VAPID Public Key for Web Push Subscriptions
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getPushPublicKeyApi = async () => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/notifications/push/public-key`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch public key' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching VAPID key' };
+  }
+};
+
+/**
+ * Phase 21: Register Web Push Subscription
+ * @param {object} subscriptionJSON
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const subscribePushApi = async (subscriptionJSON) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/notifications/push/subscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        endpoint: subscriptionJSON.endpoint,
+        keys: subscriptionJSON.keys,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to register push subscription' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error subscribing to push' };
+  }
+};
+
+/**
+ * Phase 21: Unsubscribe Web Push Subscription
+ * @param {string} endpoint
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const unsubscribePushApi = async (endpoint) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/notifications/push/unsubscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ endpoint })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to unsubscribe from push' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error unsubscribing from push' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -2899,6 +2986,9 @@ export default {
   getMyCitizenComplaintsApi,
   getMyCitizenComplaintDetailsApi,
   updateMyProfileApi,
+  getPushPublicKeyApi,
+  subscribePushApi,
+  unsubscribePushApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

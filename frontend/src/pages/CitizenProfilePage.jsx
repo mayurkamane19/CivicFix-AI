@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getMeApi, updateMyProfileApi, setStoredUser } from '../services/api';
+import {
+  isPushSupported,
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+  getCurrentPushSubscription
+} from '../utils/pushNotifications';
 import './CitizenProfilePage.css';
 
 /**
@@ -29,6 +35,11 @@ const CitizenProfilePage = ({
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', text }
 
+  // Push notification support & subscription state
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [togglingPush, setTogglingPush] = useState(false);
+
   useEffect(() => {
     const loadProfile = async () => {
       const res = await getMeApi();
@@ -42,9 +53,42 @@ const CitizenProfilePage = ({
           }));
         }
       }
+
+      // Check push notification capability
+      const supported = isPushSupported();
+      setPushSupported(supported);
+      if (supported) {
+        const activeSub = await getCurrentPushSubscription();
+        setPushEnabled(Boolean(activeSub));
+      }
     };
     loadProfile();
   }, []);
+
+  const handleTogglePush = async () => {
+    setTogglingPush(true);
+    setToast(null);
+
+    if (pushEnabled) {
+      const res = await unsubscribeFromPushNotifications();
+      setTogglingPush(false);
+      if (res.success) {
+        setPushEnabled(false);
+        setToast({ type: 'success', text: 'Web push notifications disabled for this device.' });
+      } else {
+        setToast({ type: 'error', text: res.error || 'Failed to unsubscribe from push notifications.' });
+      }
+    } else {
+      const res = await subscribeToPushNotifications();
+      setTogglingPush(false);
+      if (res.success) {
+        setPushEnabled(true);
+        setToast({ type: 'success', text: '✓ Web push notifications enabled successfully on this device!' });
+      } else {
+        setToast({ type: 'error', text: res.error || 'Could not enable push notifications.' });
+      }
+    }
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -195,6 +239,26 @@ const CitizenProfilePage = ({
         {/* Notification Preferences Card */}
         <div className="cpp-card">
           <div className="cpp-card-title">🔔 Citizen Alert Preferences</div>
+
+          {pushSupported && (
+            <div className="cpp-toggle-item" style={{ background: '#f0fdf4', padding: '0.9rem', borderRadius: '8px', marginBottom: '0.75rem', border: '1px solid #bbf7d0' }}>
+              <div className="cpp-toggle-info">
+                <span className="cpp-toggle-title">📲 Browser Push Notifications</span>
+                <span className="cpp-toggle-desc">
+                  Receive instant alerts on your desktop or mobile screen when officers submit resolution evidence
+                </span>
+              </div>
+              <label className="cpp-switch">
+                <input
+                  type="checkbox"
+                  checked={pushEnabled}
+                  disabled={togglingPush}
+                  onChange={handleTogglePush}
+                />
+                <span className="cpp-slider" />
+              </label>
+            </div>
+          )}
 
           <div className="cpp-toggle-item">
             <div className="cpp-toggle-info">
