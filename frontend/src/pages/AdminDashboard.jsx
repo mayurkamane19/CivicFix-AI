@@ -14,6 +14,9 @@ import AdminComplaintMap from '../components/map/AdminComplaintMap';
 import AnalyticsDashboard from '../components/analytics/AnalyticsDashboard';
 import NotificationCenter from '../components/notifications/NotificationCenter';
 import AdminResolutionReviewTab from '../components/resolution/AdminResolutionReviewTab';
+import WardManagement from '../components/ward/WardManagement';
+import MunicipalOverviewTab from '../components/ward/MunicipalOverviewTab';
+import ComplaintTransferModal from '../components/ward/ComplaintTransferModal';
 import {
   getAdminStatsApi,
   getAdminComplaintsApi,
@@ -68,6 +71,8 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [complaintToTransfer, setComplaintToTransfer] = useState(null);
 
   // Notification / Feedback State
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
@@ -200,6 +205,23 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
   const handleOpenAssignModal = (complaint) => {
     setSelectedComplaint(complaint);
     setAssignModalOpen(true);
+  };
+
+  // Open Inter-Ward Transfer Modal
+  const handleOpenTransferModal = (complaint) => {
+    setComplaintToTransfer(complaint);
+    setTransferModalOpen(true);
+  };
+
+  // Transfer Success Callback
+  const handleTransferSuccess = (transferResult) => {
+    setFeedback({
+      type: 'success',
+      message: `Jurisdiction transfer confirmed: Ticket ${transferResult.complaintId} transferred to ${transferResult.destinationWard.name}. SLA deadline preserved.`
+    });
+    fetchComplaints();
+    fetchStats();
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   // Assignment Success Callback
@@ -411,6 +433,13 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
             </button>
             <button
               type="button"
+              className={`admin-tab-btn ${activeTab === 'wards' ? 'active' : ''}`}
+              onClick={() => setActiveTab('wards')}
+            >
+              🏛️ Multi-Ward Command
+            </button>
+            <button
+              type="button"
               className={`admin-tab-btn ${activeTab === 'resolutions' ? 'active' : ''}`}
               onClick={() => setActiveTab('resolutions')}
             >
@@ -565,6 +594,7 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
               onViewDetails={handleViewDetails}
               onOpenStatusModal={handleOpenStatusModal}
               onOpenAssignModal={handleOpenAssignModal}
+              onOpenTransferModal={handleOpenTransferModal}
               onPageChange={(p) => setCurrentPage(p)}
               onLimitChange={(lim) => {
                 setPageLimit(lim);
@@ -626,6 +656,14 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
             <AdminResolutionReviewTab />
           </div>
         )}
+
+        {/* TAB 10: MULTI-WARD MUNICIPAL GOVERNANCE (PHASE 22) */}
+        {activeTab === 'wards' && (
+          <div className="admin-wards-section" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <MunicipalOverviewTab onSelectWard={(wardId) => console.log('Selected ward:', wardId)} />
+            <WardManagement onSelectWardForDetails={(wardId) => console.log('Selected ward for details:', wardId)} />
+          </div>
+        )}
       </main>
 
       {/* Modals */}
@@ -643,6 +681,10 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
         onOpenAssignModal={(c) => {
           setDetailsModalOpen(false);
           handleOpenAssignModal(c);
+        }}
+        onOpenTransferModal={(c) => {
+          setDetailsModalOpen(false);
+          handleOpenTransferModal(c);
         }}
       />
 
@@ -663,6 +705,18 @@ export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin })
         }}
         onAssignmentSuccess={handleAssignmentSuccess}
       />
+
+      {transferModalOpen && complaintToTransfer && (
+        <ComplaintTransferModal
+          complaint={complaintToTransfer}
+          isOpen={transferModalOpen}
+          onClose={() => {
+            setTransferModalOpen(false);
+            setComplaintToTransfer(null);
+          }}
+          onTransferSuccess={handleTransferSuccess}
+        />
+      )}
     </div>
   );
 };

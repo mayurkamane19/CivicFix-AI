@@ -11,6 +11,7 @@ export const ComplaintManagementTable = ({
   onViewDetails,
   onOpenStatusModal,
   onOpenAssignModal,
+  onOpenTransferModal,
   onPageChange,
   onLimitChange
 }) => {
@@ -186,6 +187,17 @@ export const ComplaintManagementTable = ({
                         >
                           Assign
                         </button>
+                        {onOpenTransferModal && (
+                          <button
+                            type="button"
+                            className="btn-action btn-action-transfer"
+                            onClick={() => onOpenTransferModal(c)}
+                            title="Transfer complaint to another municipal ward"
+                            style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' }}
+                          >
+                            Transfer
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn-action btn-action-status"

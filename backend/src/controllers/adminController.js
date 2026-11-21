@@ -46,6 +46,7 @@ export const getComplaints = async (req, res, next) => {
       severity,
       department,
       officer,
+      ward,
       sortBy,
       page,
       limit
@@ -58,6 +59,7 @@ export const getComplaints = async (req, res, next) => {
       severity,
       department,
       officer,
+      ward,
       sortBy,
       page,
       limit
@@ -261,6 +263,7 @@ export const getAdminMap = async (req, res, next) => {
       severity,
       department,
       officer,
+      ward,
       startDate,
       endDate,
       limit
@@ -272,6 +275,7 @@ export const getAdminMap = async (req, res, next) => {
       severity,
       department,
       officer,
+      ward,
       startDate,
       endDate,
       limit

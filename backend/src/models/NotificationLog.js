@@ -18,7 +18,10 @@ export const NOTIFICATION_EVENT_TYPES = [
   'RESOLUTION_SUBMITTED',
   'RESOLUTION_VERIFIED',
   'RESOLUTION_REJECTED',
-  'ADMIN_REVIEW_REQUIRED'
+  'ADMIN_REVIEW_REQUIRED',
+  'WARD_ASSIGNED',
+  'WARD_TRANSFER',
+  'OFFICER_WARD_ASSIGNED'
 ];
 
 export const NOTIFICATION_CATEGORIES = [
@@ -50,6 +53,9 @@ export const mapEventToCategory = (eventType) => {
       return 'status';
     case 'DEPARTMENT_ASSIGNED':
     case 'OFFICER_ASSIGNED':
+    case 'WARD_ASSIGNED':
+    case 'WARD_TRANSFER':
+    case 'OFFICER_WARD_ASSIGNED':
       return 'assignment';
     case 'COMPLAINT_RESOLVED':
     case 'RESOLUTION_SUBMITTED':

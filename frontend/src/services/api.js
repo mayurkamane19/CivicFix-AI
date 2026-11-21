@@ -2906,6 +2906,420 @@ export const unsubscribePushApi = async (endpoint) => {
   }
 };
 
+/**
+ * Phase 22: Create Municipal Ward
+ * @param {object} wardData
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const createWardApi = async (wardData) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(wardData)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to create ward' };
+    }
+    return { success: true, data: data.data?.ward || data.data, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error creating ward' };
+  }
+};
+
+/**
+ * Phase 22: Get Wards List
+ * @param {object} params
+ * @returns {Promise<{success: boolean, data?: Array, pagination?: object, error?: string}>}
+ */
+export const getWardsApi = async ({ search = '', zone = '', isActive = '', page = 1, limit = 10 } = {}) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const query = new URLSearchParams();
+    if (search) query.append('search', search);
+    if (zone && zone !== 'all') query.append('zone', zone);
+    if (isActive !== '' && isActive !== 'all') query.append('isActive', isActive);
+    query.append('page', page);
+    query.append('limit', limit);
+
+    const res = await fetch(`${API_BASE_URL}/api/wards?${query.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to retrieve wards' };
+    }
+    return { success: true, data: data.data || [], pagination: data.pagination };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching wards' };
+  }
+};
+
+/**
+ * Phase 22: Get Ward Details by ID
+ * @param {string} wardId
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getWardDetailsApi = async (wardId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to retrieve ward details' };
+    }
+    return { success: true, data: data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching ward details' };
+  }
+};
+
+/**
+ * Phase 22: Update Ward
+ * @param {string} wardId
+ * @param {object} updates
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const updateWardApi = async (wardId, updates) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(updates)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to update ward' };
+    }
+    return { success: true, data: data.data?.ward || data.data, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error updating ward' };
+  }
+};
+
+/**
+ * Phase 22: Toggle Ward Status (Activate / Deactivate)
+ * @param {string} wardId
+ * @param {boolean} isActive
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const toggleWardStatusApi = async (wardId, isActive) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ isActive })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to toggle ward status' };
+    }
+    return { success: true, data: data.data, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error toggling ward status' };
+  }
+};
+
+/**
+ * Phase 22: Delete Ward
+ * @param {string} wardId
+ * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+ */
+export const deleteWardApi = async (wardId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to delete ward' };
+    }
+    return { success: true, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error deleting ward' };
+  }
+};
+
+/**
+ * Phase 22: Get Ward Officers
+ * @param {string} wardId
+ * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+ */
+export const getWardOfficersApi = async (wardId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}/officers`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to retrieve ward officers' };
+    }
+    return { success: true, data: data.data?.officers || [] };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching ward officers' };
+  }
+};
+
+/**
+ * Phase 22: Assign Officers to Ward
+ * @param {string} wardId
+ * @param {Array<string>} officerIds
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const assignWardOfficersApi = async (wardId, officerIds) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}/officers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ officerIds })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to assign officers' };
+    }
+    return { success: true, data: data.data, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error assigning officers' };
+  }
+};
+
+/**
+ * Phase 22: Remove Officer from Ward
+ * @param {string} wardId
+ * @param {string} officerId
+ * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+ */
+export const removeWardOfficerApi = async (wardId, officerId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}/officers/${officerId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to remove officer' };
+    }
+    return { success: true, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error removing officer' };
+  }
+};
+
+/**
+ * Phase 22: Assign Departments to Ward
+ * @param {string} wardId
+ * @param {Array<string>} departmentIds
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const assignWardDepartmentsApi = async (wardId, departmentIds) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}/departments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ departmentIds })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to assign departments' };
+    }
+    return { success: true, data: data.data, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error assigning departments' };
+  }
+};
+
+/**
+ * Phase 22: Inter-Ward Complaint Transfer
+ * @param {string} complaintId
+ * @param {object} data - { destinationWardId, destinationDepartmentId, reason }
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const transferComplaintWardApi = async (complaintId, { destinationWardId, destinationDepartmentId, reason }) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/complaints/${complaintId}/transfer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ destinationWardId, destinationDepartmentId, reason })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to transfer complaint between wards' };
+    }
+    return { success: true, data: data.data, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error transferring complaint' };
+  }
+};
+
+/**
+ * Phase 22: Get Municipal Multi-Ward Overview & KPIs
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getMunicipalOverviewApi = async () => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/overview`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to retrieve municipal overview' };
+    }
+    return { success: true, data: data.data?.stats || data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching municipal overview' };
+  }
+};
+
+/**
+ * Phase 22: Get Ward Analytics
+ * @param {string} wardId
+ * @param {object} params
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getWardAnalyticsApi = async (wardId, { startDate = '', endDate = '' } = {}) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Authorization required' };
+
+  try {
+    const query = new URLSearchParams();
+    if (startDate) query.append('startDate', startDate);
+    if (endDate) query.append('endDate', endDate);
+
+    const res = await fetch(`${API_BASE_URL}/api/wards/${wardId}/analytics?${query.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to retrieve ward analytics' };
+    }
+    return { success: true, data: data.data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching ward analytics' };
+  }
+};
+
+/**
+ * Phase 22: Export Municipal Complaints CSV
+ * @param {object} params
+ * @returns {Promise<{success: boolean, blob?: Blob, filename?: string, error?: string}>}
+ */
+export const exportMunicipalWardCsvApi = async ({ wardId = '', startDate = '', endDate = '' } = {}) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'Administrator authorization required' };
+
+  try {
+    const query = new URLSearchParams();
+    if (wardId && wardId !== 'all') query.append('wardId', wardId);
+    if (startDate) query.append('startDate', startDate);
+    if (endDate) query.append('endDate', endDate);
+
+    const res = await fetch(`${API_BASE_URL}/api/wards/analytics/export?${query.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      return { success: false, error: 'Failed to download municipal CSV report' };
+    }
+
+    const blob = await res.blob();
+    const filename = `civicfix_municipal_report_${new Date().toISOString().slice(0, 10)}.csv`;
+    return { success: true, blob, filename };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error downloading CSV report' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -2989,6 +3403,20 @@ export default {
   getPushPublicKeyApi,
   subscribePushApi,
   unsubscribePushApi,
+  createWardApi,
+  getWardsApi,
+  getWardDetailsApi,
+  updateWardApi,
+  toggleWardStatusApi,
+  deleteWardApi,
+  getWardOfficersApi,
+  assignWardOfficersApi,
+  removeWardOfficerApi,
+  assignWardDepartmentsApi,
+  transferComplaintWardApi,
+  getMunicipalOverviewApi,
+  getWardAnalyticsApi,
+  exportMunicipalWardCsvApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

@@ -81,6 +81,7 @@ export const getComplaintsForAdmin = async ({
   severity = '',
   department = '',
   officer = '',
+  ward = '',
   sortBy = 'newest',
   page = 1,
   limit = 10
@@ -128,10 +129,15 @@ export const getComplaintsForAdmin = async ({
     filterQuery.assignedOfficer = officer.trim();
   }
 
-  // 5. Sorting
+  // 7. Ward Filter
+  if (ward && typeof ward === 'string' && ward.trim() !== '' && ward.trim().toLowerCase() !== 'all') {
+    filterQuery.ward = ward.trim();
+  }
+
+  // 8. Sorting
   const sort = sortBy === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
 
-  // 6. Pagination Calculations
+  // 9. Pagination Calculations
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
   const skip = (pageNum - 1) * limitNum;
@@ -142,6 +148,7 @@ export const getComplaintsForAdmin = async ({
     Complaint.find(filterQuery)
       .populate('assignedDepartment', 'name code')
       .populate('assignedOfficer', 'name')
+      .populate('ward', 'name code number zone')
       .sort(sort)
       .skip(skip)
       .limit(limitNum)
@@ -184,7 +191,8 @@ export const getAdminComplaintDetails = async (rawComplaintId) => {
   const trimmedId = rawComplaintId.trim();
   const complaint = await Complaint.findOne({ complaintId: trimmedId })
     .populate('assignedDepartment', 'name code')
-    .populate('assignedOfficer', 'name email');
+    .populate('assignedOfficer', 'name email')
+    .populate('ward', 'name code number zone center boundaries');
 
   if (!complaint) {
     const error = new Error(`Complaint not found with ID: ${trimmedId}`);
@@ -216,7 +224,8 @@ export const getComplaintStatusHistory = async (rawComplaintId) => {
   const trimmedId = rawComplaintId.trim();
   const complaint = await Complaint.findOne({ complaintId: trimmedId })
     .populate('assignedDepartment', 'name code')
-    .populate('assignedOfficer', 'name email');
+    .populate('assignedOfficer', 'name email')
+    .populate('ward', 'name code number zone center boundaries');
 
   if (!complaint) {
     const error = new Error(`Complaint not found with ID: ${trimmedId}`);

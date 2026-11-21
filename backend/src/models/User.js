@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['citizen', 'admin', 'officer'],
+        values: ['citizen', 'admin', 'officer', 'ward_admin', 'department_head'],
         message: '{VALUE} is not a valid user role'
       },
       default: 'citizen'
@@ -56,6 +56,11 @@ const userSchema = new mongoose.Schema(
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Department',
+      default: null
+    },
+    ward: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ward',
       default: null
     },
     isActive: {
@@ -89,6 +94,7 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ role: 1 });
 userSchema.index({ department: 1 });
+userSchema.index({ ward: 1 });
 
 // Pre-save hook: Hash password with bcrypt before saving
 userSchema.pre('save', async function () {
@@ -128,6 +134,14 @@ userSchema.methods.toSafeObject = function () {
       id: this.department._id ? this.department._id.toString() : undefined,
       name: this.department.name,
       code: this.department.code
+    } : undefined,
+    ward: this.ward ? (this.ward._id ? this.ward._id.toString() : this.ward.toString()) : null,
+    wardDetails: this.ward && typeof this.ward === 'object' && this.ward.name ? {
+      id: this.ward._id ? this.ward._id.toString() : undefined,
+      name: this.ward.name,
+      code: this.ward.code,
+      number: this.ward.number,
+      zone: this.ward.zone
     } : undefined,
     isActive: this.isActive,
     emailNotificationsEnabled: this.emailNotificationsEnabled === true,

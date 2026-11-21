@@ -337,6 +337,95 @@ const complaintSchema = new mongoose.Schema(
       ref: 'User',
       default: null
     },
+    ward: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ward',
+      default: null
+    },
+    wardName: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    wardCode: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    wardTransferHistory: [
+      {
+        previousWard: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Ward',
+          default: null
+        },
+        previousWardName: {
+          type: String,
+          trim: true,
+          default: null
+        },
+        previousWardCode: {
+          type: String,
+          trim: true,
+          default: null
+        },
+        destinationWard: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Ward',
+          required: true
+        },
+        destinationWardName: {
+          type: String,
+          trim: true,
+          required: true
+        },
+        destinationWardCode: {
+          type: String,
+          trim: true,
+          required: true
+        },
+        previousDepartment: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Department',
+          default: null
+        },
+        previousDepartmentName: {
+          type: String,
+          trim: true,
+          default: null
+        },
+        destinationDepartment: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Department',
+          default: null
+        },
+        destinationDepartmentName: {
+          type: String,
+          trim: true,
+          default: null
+        },
+        transferredBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true
+        },
+        transferredByName: {
+          type: String,
+          trim: true,
+          default: 'Municipal Administrator'
+        },
+        reason: {
+          type: String,
+          trim: true,
+          required: true,
+          maxlength: [1000, 'Transfer reason cannot exceed 1000 characters']
+        },
+        transferredAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ],
     assignmentHistory: [
       {
         previousDepartment: {
@@ -610,6 +699,7 @@ complaintSchema.index({ 'imageAnalysis.status': 1 });
 complaintSchema.index({ 'duplicateCheck.isPotentialDuplicate': 1 });
 complaintSchema.index({ assignedDepartment: 1 });
 complaintSchema.index({ assignedOfficer: 1 });
+complaintSchema.index({ ward: 1 });
 complaintSchema.index({ 'location.latitude': 1, 'location.longitude': 1 });
 complaintSchema.index({ status: 1, 'location.latitude': 1, 'location.longitude': 1 });
 complaintSchema.index({ createdAt: -1 });
@@ -709,6 +799,8 @@ complaintSchema.methods.toPublicJSON = function () {
       note: a.note || '',
       assignedAt: a.assignedAt
     })),
+    wardName: this.ward && this.ward.name ? this.ward.name : (this.wardName || null),
+    wardCode: this.ward && this.ward.code ? this.ward.code : (this.wardCode || null),
     emailNotificationsEnabled: this.emailNotificationsEnabled === true,
     sla: this.sla
       ? {
@@ -841,6 +933,26 @@ complaintSchema.methods.toAdminJSON = function () {
     assignedBy: this.assignedBy
       ? (this.assignedBy._id ? this.assignedBy._id.toString() : this.assignedBy.toString())
       : null,
+    ward: this.ward ? (this.ward._id ? this.ward._id.toString() : this.ward.toString()) : null,
+    wardName: this.ward && this.ward.name ? this.ward.name : (this.wardName || null),
+    wardCode: this.ward && this.ward.code ? this.ward.code : (this.wardCode || null),
+    wardTransferHistory: (this.wardTransferHistory || []).map((t) => ({
+      id: t._id ? t._id.toString() : undefined,
+      previousWard: t.previousWard ? t.previousWard.toString() : null,
+      previousWardName: t.previousWardName || null,
+      previousWardCode: t.previousWardCode || null,
+      destinationWard: t.destinationWard ? t.destinationWard.toString() : null,
+      destinationWardName: t.destinationWardName,
+      destinationWardCode: t.destinationWardCode,
+      previousDepartment: t.previousDepartment ? t.previousDepartment.toString() : null,
+      previousDepartmentName: t.previousDepartmentName || null,
+      destinationDepartment: t.destinationDepartment ? t.destinationDepartment.toString() : null,
+      destinationDepartmentName: t.destinationDepartmentName || null,
+      transferredBy: t.transferredBy ? t.transferredBy.toString() : null,
+      transferredByName: t.transferredByName || 'Municipal Administrator',
+      reason: t.reason,
+      transferredAt: t.transferredAt
+    })),
     statusHistory: (this.statusHistory || []).map((h) => ({
       id: h._id ? h._id.toString() : undefined,
       previousStatus: h.previousStatus,

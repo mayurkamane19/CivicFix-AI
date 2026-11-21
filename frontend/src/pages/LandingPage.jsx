@@ -8,6 +8,7 @@ import ReportIssuePage from './ReportIssuePage';
 import TrackComplaintPage from './TrackComplaintPage';
 import PublicComplaintMapPage from './PublicComplaintMapPage';
 import AdminDashboard from './AdminDashboard';
+import MunicipalDashboard from './MunicipalDashboard';
 import OfficerDashboard from './OfficerDashboard';
 import CitizenDashboard from './CitizenDashboard';
 import MyComplaintsPage from './MyComplaintsPage';
@@ -91,7 +92,7 @@ export const LandingPage = () => {
   // Auth Handlers
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
-    if (user.role === 'admin') {
+    if (user.role === 'admin' || user.role === 'ward_admin') {
       setCurrentView('admin');
     } else if (user.role === 'officer') {
       setCurrentView('officer');
@@ -170,6 +171,7 @@ export const LandingPage = () => {
         onNavigateCitizen={handleNavigateCitizen}
         onNavigateMyComplaints={() => handleNavigateMyComplaints('')}
         onNavigateAdmin={() => setCurrentView('admin')}
+        onNavigateMunicipal={() => setCurrentView('municipal')}
         onNavigateOfficer={() => setCurrentView('officer')}
         onLogout={handleLogout}
       />
@@ -274,6 +276,14 @@ export const LandingPage = () => {
 
         {currentView === 'admin' && (
           <AdminDashboard
+            currentUser={currentUser}
+            onNavigateHome={() => setCurrentView('home')}
+            onNavigateLogin={() => setCurrentView('login')}
+          />
+        )}
+
+        {currentView === 'municipal' && (
+          <MunicipalDashboard
             currentUser={currentUser}
             onNavigateHome={() => setCurrentView('home')}
             onNavigateLogin={() => setCurrentView('login')}

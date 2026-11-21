@@ -55,6 +55,7 @@ export const getAdminMapComplaints = async ({
   severity = '',
   department = '',
   officer = '',
+  ward = '',
   startDate = '',
   endDate = '',
   limit = 500
@@ -100,6 +101,13 @@ export const getAdminMapComplaints = async ({
     }
   }
 
+  // Ward Filter
+  if (ward && typeof ward === 'string' && ward.trim() !== '' && ward.trim().toLowerCase() !== 'all') {
+    if (mongoose.Types.ObjectId.isValid(ward.trim())) {
+      filterQuery.ward = ward.trim();
+    }
+  }
+
   // Date Range Filters
   if (startDate || endDate) {
     filterQuery.createdAt = {};
@@ -124,6 +132,7 @@ export const getAdminMapComplaints = async ({
   const complaints = await Complaint.find(filterQuery)
     .populate('assignedDepartment', 'name code')
     .populate('assignedOfficer', 'name')
+    .populate('ward', 'name code number zone')
     .sort({ createdAt: -1 })
     .limit(safeLimit);
 
@@ -139,6 +148,9 @@ export const getAdminMapComplaints = async ({
     latitude: c.location.latitude,
     longitude: c.location.longitude,
     imageUrl: c.imageUrl || '',
+    wardId: c.ward?._id ? c.ward._id.toString() : (c.ward ? c.ward.toString() : null),
+    wardName: c.ward?.name || c.wardName || 'Unassigned',
+    wardCode: c.ward?.code || c.wardCode || null,
     aiAnalysis: {
       status: c.aiAnalysis?.status || 'Pending',
       severity: c.aiAnalysis?.severity || null,

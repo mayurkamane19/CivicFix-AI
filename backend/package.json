@@ -40,9 +40,12 @@
     "test:citizen-ui": "node test-citizen-ui.js",
     "test:pwa-backend": "node test-pwa-backend.js",
     "test:pwa-frontend": "node test-pwa-frontend.js",
+    "test:ward-backend": "node test-ward-backend.js",
+    "test:ward-frontend": "node test-ward-frontend.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "seed:departments": "node scripts/seedDepartments.js",
-    "seed:officer": "node scripts/seedOfficer.js"
+    "seed:officer": "node scripts/seedOfficer.js",
+    "seed:wards": "node scripts/seedWards.js"
   },
   "keywords": [
     "civicfix",

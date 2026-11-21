@@ -10,7 +10,8 @@ export const AdminComplaintDetails = ({
   isOpen,
   onClose,
   onOpenStatusModal,
-  onOpenAssignModal
+  onOpenAssignModal,
+  onOpenTransferModal
 }) => {
   if (!isOpen || !complaint) return null;
 
@@ -169,6 +170,19 @@ export const AdminComplaintDetails = ({
                     </span>
                   ) : (
                     <span style={{ color: 'var(--slate-400)', fontStyle: 'italic' }}>No officer assigned</span>
+                  )}
+                </p>
+              </div>
+
+              <div className="detail-item">
+                <span className="detail-label">Municipal Ward</span>
+                <p className="detail-value">
+                  {complaint.wardName ? (
+                    <span style={{ fontWeight: 600, color: '#1d4ed8' }}>
+                      🏛️ {complaint.wardName} {complaint.wardCode ? `(${complaint.wardCode})` : ''}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--slate-400)', fontStyle: 'italic' }}>Unassigned Ward</span>
                   )}
                 </p>
               </div>
@@ -519,10 +533,52 @@ export const AdminComplaintDetails = ({
               )}
             </div>
           )}
+
+          {/* Inter-Ward Transfer Audit Trail (Phase 22) */}
+          {complaint.wardTransferHistory && complaint.wardTransferHistory.length > 0 && (
+            <div className="details-card history-audit-panel" style={{ marginTop: '1.25rem' }}>
+              <div className="details-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  🏛️ Inter-Ward Jurisdiction Transfer Audit Trail
+                </span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--slate-500)' }}>
+                  {complaint.wardTransferHistory.length} transfer(s)
+                </span>
+              </div>
+
+              <div className="status-history-timeline">
+                {complaint.wardTransferHistory.map((t, idx) => (
+                  <div key={t.id || idx} className="history-timeline-item">
+                    <div className="timeline-node" style={{ borderColor: '#2563eb' }} />
+                    <div className="history-timeline-content">
+                      <div className="history-header-row">
+                        <div className="history-status-transition">
+                          <span style={{ color: '#64748b' }}>{t.previousWardName || 'Unassigned Ward'}</span>
+                          <span className="history-arrow" style={{ color: '#2563eb' }}>➔</span>
+                          <strong style={{ color: '#1d4ed8' }}>{t.destinationWardName} ({t.destinationWardCode})</strong>
+                        </div>
+                        <span className="history-timestamp">{formatDate(t.transferredAt)}</span>
+                      </div>
+                      <div className="history-actor">
+                        Transferred by: <strong>{t.transferredByName || 'Municipal Administrator'}</strong>
+                      </div>
+                      {t.reason && (
+                        <div className="history-note-text">
+                          <span className="note-quote-mark">“</span>
+                          {t.reason}
+                          <span className="note-quote-mark">”</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}
-        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             className="btn btn-secondary"
@@ -530,6 +586,16 @@ export const AdminComplaintDetails = ({
           >
             Close
           </button>
+          {onOpenTransferModal && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => onOpenTransferModal(complaint)}
+              style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' }}
+            >
+              🏛️ Transfer Ward
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-secondary"
