@@ -9,6 +9,11 @@ import TrackComplaintPage from './TrackComplaintPage';
 import PublicComplaintMapPage from './PublicComplaintMapPage';
 import AdminDashboard from './AdminDashboard';
 import OfficerDashboard from './OfficerDashboard';
+import CitizenDashboard from './CitizenDashboard';
+import MyComplaintsPage from './MyComplaintsPage';
+import CitizenComplaintDetailsPage from './CitizenComplaintDetailsPage';
+import MultiStepReportPage from './MultiStepReportPage';
+import CitizenProfilePage from './CitizenProfilePage';
 import UserProfile from '../components/UserProfile';
 import { checkHealth, getMeApi, getStoredUser, clearSession } from '../services/api';
 
@@ -19,8 +24,10 @@ export const LandingPage = () => {
 
   // Authentication State & Client-Side View Navigation
   const [currentUser, setCurrentUser] = useState(() => getStoredUser());
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'report' | 'track' | 'login' | 'register' | 'profile'
+  const [currentView, setCurrentView] = useState('home'); // 'home' | 'report' | 'report-new' | 'track' | 'login' | 'register' | 'profile' | 'citizen' | 'my-complaints' | 'complaint-details' | 'citizen-profile'
   const [trackComplaintId, setTrackComplaintId] = useState('');
+  const [initialComplaintFilter, setInitialComplaintFilter] = useState('');
+  const [detailsComplaintId, setDetailsComplaintId] = useState('');
 
   // Verify backend health
   const verifyBackendConnection = useCallback(async () => {
@@ -67,13 +74,13 @@ export const LandingPage = () => {
     } else if (user.role === 'officer') {
       setCurrentView('officer');
     } else {
-      setCurrentView('profile');
+      setCurrentView('citizen');
     }
   };
 
   const handleRegisterSuccess = (user) => {
     setCurrentUser(user);
-    setCurrentView('profile');
+    setCurrentView('citizen');
   };
 
   const handleLogout = () => {
@@ -87,6 +94,23 @@ export const LandingPage = () => {
     setCurrentView('track');
   };
 
+  const handleNavigateCitizen = () => setCurrentView('citizen');
+  const handleNavigateMyComplaints = (filter = '') => {
+    setInitialComplaintFilter(filter);
+    setCurrentView('my-complaints');
+  };
+  const handleViewComplaintDetails = (complaintId) => {
+    setDetailsComplaintId(complaintId);
+    setCurrentView('complaint-details');
+  };
+  const handleNavigateReport = () => {
+    if (currentUser?.role === 'citizen') {
+      setCurrentView('report-new');
+    } else {
+      setCurrentView('report');
+    }
+  };
+
   return (
     <div className="app-layout">
       {/* Top Navigation */}
@@ -97,12 +121,20 @@ export const LandingPage = () => {
         currentUser={currentUser}
         currentView={currentView}
         onNavigateHome={() => setCurrentView('home')}
-        onNavigateReport={() => setCurrentView('report')}
+        onNavigateReport={handleNavigateReport}
         onNavigateTrack={handleNavigateTrack}
         onNavigateMap={() => setCurrentView('map')}
         onNavigateLogin={() => setCurrentView('login')}
         onNavigateRegister={() => setCurrentView('register')}
-        onNavigateProfile={() => setCurrentView('profile')}
+        onNavigateProfile={() => {
+          if (currentUser?.role === 'citizen') {
+            setCurrentView('citizen-profile');
+          } else {
+            setCurrentView('profile');
+          }
+        }}
+        onNavigateCitizen={handleNavigateCitizen}
+        onNavigateMyComplaints={() => handleNavigateMyComplaints('')}
         onNavigateAdmin={() => setCurrentView('admin')}
         onNavigateOfficer={() => setCurrentView('officer')}
         onLogout={handleLogout}
@@ -152,6 +184,50 @@ export const LandingPage = () => {
           <UserProfile
             user={currentUser}
             onLogout={handleLogout}
+            onNavigateHome={() => setCurrentView('home')}
+          />
+        )}
+
+        {currentView === 'citizen' && currentUser && (
+          <CitizenDashboard
+            currentUser={currentUser}
+            onNavigateReport={() => setCurrentView('report-new')}
+            onNavigateMyComplaints={(filter) => handleNavigateMyComplaints(filter)}
+            onNavigateHome={() => setCurrentView('home')}
+          />
+        )}
+
+        {currentView === 'my-complaints' && currentUser && (
+          <MyComplaintsPage
+            initialStatus={initialComplaintFilter}
+            onViewComplaint={handleViewComplaintDetails}
+            onNavigateDashboard={handleNavigateCitizen}
+            onNavigateReport={() => setCurrentView('report-new')}
+          />
+        )}
+
+        {currentView === 'complaint-details' && currentUser && (
+          <CitizenComplaintDetailsPage
+            complaintId={detailsComplaintId}
+            currentUser={currentUser}
+            onNavigateBack={() => setCurrentView('my-complaints')}
+            onNavigateHome={() => setCurrentView('home')}
+          />
+        )}
+
+        {currentView === 'report-new' && (
+          <MultiStepReportPage
+            onNavigateTrack={handleNavigateTrack}
+            onNavigateHome={() => setCurrentView('home')}
+            onNavigateDashboard={handleNavigateCitizen}
+          />
+        )}
+
+        {currentView === 'citizen-profile' && currentUser && (
+          <CitizenProfilePage
+            currentUser={currentUser}
+            onUpdateUser={(updated) => setCurrentUser(updated)}
+            onNavigateDashboard={handleNavigateCitizen}
             onNavigateHome={() => setCurrentView('home')}
           />
         )}

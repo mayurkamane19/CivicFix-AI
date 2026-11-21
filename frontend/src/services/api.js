@@ -2704,6 +2704,121 @@ export const getOfficerPerformanceAnalyticsApi = async (params = {}) => {
   }
 };
 
+/**
+ * Phase 20: Citizen Dashboard Statistics & Recent Activity
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getCitizenDashboardApi = async () => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/complaints/my/dashboard`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch citizen dashboard' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching citizen dashboard' };
+  }
+};
+
+/**
+ * Phase 20: Citizen My Complaints List with Search, Filter & Pagination
+ * @param {object} params
+ * @returns {Promise<{success: boolean, data?: array, pagination?: object, error?: string}>}
+ */
+export const getMyCitizenComplaintsApi = async (params = {}) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.append(k, v);
+    });
+
+    const res = await fetch(`${API_BASE_URL}/api/complaints/my/complaints?${qs.toString()}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch complaints' };
+    }
+    return {
+      success: true,
+      data: Array.isArray(data.data) ? data.data : (data.complaints || []),
+      pagination: data.pagination || { total: 0, page: 1, pages: 1, limit: 10 }
+    };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching complaints' };
+  }
+};
+
+/**
+ * Phase 20: Citizen Authenticated Complaint Details (Anti-IDOR)
+ * @param {string} complaintId
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getMyCitizenComplaintDetailsApi = async (complaintId) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/complaints/my/${encodeURIComponent(complaintId)}`, {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to fetch complaint details' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error fetching complaint details' };
+  }
+};
+
+/**
+ * Phase 20: Citizen Profile Update (name, phone, notificationPreferences)
+ * @param {object} profileData
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const updateMyProfileApi = async (profileData) => {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: 'No active session token found' };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(profileData)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.message || 'Failed to update profile' };
+    }
+    return { success: true, data: data.data || data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error updating profile' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -2780,6 +2895,10 @@ export default {
   getAdminResolutionDetailsApi,
   reviewAdminResolutionApi,
   getOfficerPerformanceAnalyticsApi,
+  getCitizenDashboardApi,
+  getMyCitizenComplaintsApi,
+  getMyCitizenComplaintDetailsApi,
+  updateMyProfileApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

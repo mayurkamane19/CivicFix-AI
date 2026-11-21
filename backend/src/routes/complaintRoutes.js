@@ -4,7 +4,10 @@ import {
   trackComplaint,
   analyzeComplaint,
   checkDuplicates,
-  getPublicMap
+  getPublicMap,
+  getCitizenDashboard,
+  getMyCitizensComplaints,
+  getMyCitizenComplaintDetails
 } from '../controllers/complaintController.js';
 import {
   getResolutionEvidenceController,
@@ -18,6 +21,11 @@ const router = Router();
 
 // Public complaint map markers with location approximation (GET /api/complaints/map)
 router.get('/map', getPublicMap);
+
+// Citizen dashboard and my-complaints routes (MUST come before /:complaintId wildcard)
+router.get('/my/dashboard', protect, getCitizenDashboard);
+router.get('/my/complaints', protect, getMyCitizensComplaints);
+router.get('/my/:complaintId', protect, getMyCitizenComplaintDetails);
 
 // Public complaint submission (supports JSON and multipart/form-data with optional 'image')
 router.post('/', handleImageUpload, submitComplaint);

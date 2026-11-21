@@ -1,0 +1,216 @@
+/* ============================================================
+   CitizenComplaintDetailsPage.css — Citizen details page styling
+   ============================================================ */
+
+.ccdp-page {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+/* Header */
+.ccdp-header {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%);
+  color: #fff;
+  padding: 1.5rem 2rem;
+}
+
+.ccdp-header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ccdp-header-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.ccdp-id-badge {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.35);
+  padding: 3px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+}
+
+.ccdp-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.ccdp-header-meta {
+  font-size: 0.825rem;
+  opacity: 0.85;
+  margin-top: 0.35rem;
+}
+
+.ccdp-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  background: rgba(255,255,255,0.14);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ccdp-back-btn:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+/* Body Layout */
+.ccdp-body {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Card Sections */
+.ccdp-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.4rem 1.6rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.ccdp-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.65rem;
+}
+
+/* Info Grid */
+.ccdp-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.ccdp-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ccdp-info-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ccdp-info-val {
+  font-size: 0.925rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+/* SLA Banner */
+.ccdp-sla-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  border-radius: 10px;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ccdp-sla-ontrack {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.ccdp-sla-overdue {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+}
+
+/* Image preview in details */
+.ccdp-complaint-img {
+  max-width: 100%;
+  max-height: 380px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  object-fit: cover;
+}
+
+.ccdp-complaint-img:hover {
+  opacity: 0.92;
+}
+
+/* Loading / Error */
+.ccdp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.ccdp-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.ccdp-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 1.5rem;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 640px) {
+  .ccdp-header {
+    padding: 1.25rem 1rem;
+  }
+  .ccdp-body {
+    padding: 1rem;
+  }
+  .ccdp-card {
+    padding: 1.1rem;
+  }
+}

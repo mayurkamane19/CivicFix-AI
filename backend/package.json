@@ -36,6 +36,8 @@
     "test:notifications-ui": "node test-notifications-ui.js",
     "test:resolution-backend": "node test-resolution-backend.js",
     "test:resolution-ui": "node test-resolution-ui.js",
+    "test:citizen-dashboard": "node test-citizen-dashboard.js",
+    "test:citizen-ui": "node test-citizen-ui.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:officer": "node scripts/seedOfficer.js"

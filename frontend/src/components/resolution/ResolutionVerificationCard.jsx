@@ -31,7 +31,8 @@ export const ResolutionVerificationCard = ({
   const maxLimit = evidence.maxReopenLimit || 3;
   const reopenHistory = evidence.reopeningHistory || [];
 
-  const canCitizenAct = complaint?.status === 'Resolved' && status === 'Awaiting Citizen Verification';
+  const canCitizenAct = complaint?.status === 'Resolved' &&
+    (status === 'Awaiting Citizen Verification' || status === 'Submitted by Officer');
 
   const handleVerify = async () => {
     if (!window.confirm('Are you satisfied that this issue has been completely and correctly resolved?')) {

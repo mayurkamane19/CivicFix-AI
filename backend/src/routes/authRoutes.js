@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, getMe } from '../controllers/authController.js';
+import { register, login, getMe, updateMyProfile } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { loginRateLimiter, registerRateLimiter } from '../middleware/rateLimiter.js';
 
@@ -9,7 +9,8 @@ const router = Router();
 router.post('/register', registerRateLimiter, register);
 router.post('/login', loginRateLimiter, login);
 
-// Protected Authentication Profile Endpoint
+// Protected Authentication Profile Endpoints
 router.get('/me', protect, getMe);
+router.put('/profile', protect, updateMyProfile);
 
 export default router;

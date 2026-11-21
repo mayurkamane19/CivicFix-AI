@@ -15,6 +15,8 @@ export const Navbar = ({
   onNavigateLogin,
   onNavigateRegister,
   onNavigateProfile,
+  onNavigateCitizen,
+  onNavigateMyComplaints,
   onNavigateAdmin,
   onNavigateOfficer,
   onLogout
@@ -85,6 +87,24 @@ export const Navbar = ({
           >
             🗺️ Public Map
           </button>
+          {currentUser?.role === 'citizen' && (
+            <>
+              <button
+                type="button"
+                onClick={onNavigateCitizen}
+                className={`nav-link-btn ${currentView === 'citizen' ? 'nav-link-active' : ''}`}
+              >
+                📊 Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={onNavigateMyComplaints}
+                className={`nav-link-btn ${currentView === 'my-complaints' ? 'nav-link-active' : ''}`}
+              >
+                📂 My Complaints
+              </button>
+            </>
+          )}
           {currentUser?.role === 'admin' && (
             <button
               type="button"
@@ -232,7 +252,31 @@ export const Navbar = ({
             >
               🗺️ Public Issue Map
             </button>
-            {currentUser?.role === 'admin' && (
+            {currentUser?.role === 'citizen' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigateCitizen?.();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`mobile-nav-link-btn ${currentView === 'citizen' ? 'nav-link-active' : ''}`}
+                >
+                  📊 My Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigateMyComplaints?.();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`mobile-nav-link-btn ${currentView === 'my-complaints' ? 'nav-link-active' : ''}`}
+                >
+                  📂 My Complaints
+                </button>
+              </>
+            )}
+          {currentUser?.role === 'admin' && (
               <button
                 type="button"
                 className="mobile-nav-link-btn mobile-nav-admin"
