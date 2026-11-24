@@ -16,7 +16,8 @@ const ZONES = ['All Zones', 'Central Zone', 'North Zone', 'South Zone', 'East Zo
  * WardManagement
  * Municipal administration component for Ward Directory, creation, updates, and personnel linking
  */
-export const WardManagement = ({ onSelectWardForDetails }) => {
+export const WardManagement = ({ currentUser = null, onSelectWardForDetails }) => {
+  const isAdmin = !currentUser || currentUser.role === 'admin';
   const [wards, setWards] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   const [search, setSearch] = useState('');
@@ -228,14 +229,16 @@ export const WardManagement = ({ onSelectWardForDetails }) => {
             <option value="false">Inactive Wards</option>
           </select>
 
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleOpenCreateModal}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-          >
-            <span>+</span> Provision New Ward
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleOpenCreateModal}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              <span>+</span> Provision New Ward
+            </button>
+          )}
         </div>
 
         {/* Wards Table */}
@@ -329,31 +332,35 @@ export const WardManagement = ({ onSelectWardForDetails }) => {
                             Details
                           </button>
                         )}
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-small"
-                          onClick={() => handleOpenEditModal(w)}
-                          title="Edit ward parameters"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-small"
-                          onClick={() => handleToggleStatus(w)}
-                          title={w.isActive ? 'Deactivate ward' : 'Activate ward'}
-                        >
-                          {w.isActive ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-small"
-                          style={{ color: '#b91c1c' }}
-                          onClick={() => handleDeleteWard(w)}
-                          title="Delete ward (only if empty)"
-                        >
-                          Delete
-                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-small"
+                              onClick={() => handleOpenEditModal(w)}
+                              title="Edit ward parameters"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-small"
+                              onClick={() => handleToggleStatus(w)}
+                              title={w.isActive ? 'Deactivate ward' : 'Activate ward'}
+                            >
+                              {w.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-small"
+                              style={{ color: '#b91c1c' }}
+                              onClick={() => handleDeleteWard(w)}
+                              title="Delete ward (only if empty)"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

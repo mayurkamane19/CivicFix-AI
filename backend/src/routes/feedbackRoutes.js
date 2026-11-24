@@ -21,11 +21,12 @@ router.use(protect);
 router.get('/my', getMyFeedback);
 
 /**
- * @route   POST /api/feedback/:complaintId
+ * @route   POST /api/feedback/:complaintId or POST /api/feedback
  * @desc    Submit rating and optional comment for a resolved complaint
  * @access  Protected (Verified Complaint Owner Only)
  */
 router.post('/:complaintId', submitComplaintFeedback);
+router.post('/', submitComplaintFeedback);
 
 /**
  * @route   GET /api/feedback/complaint/:complaintId

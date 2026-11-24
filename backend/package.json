@@ -42,10 +42,22 @@
     "test:pwa-frontend": "node test-pwa-frontend.js",
     "test:ward-backend": "node test-ward-backend.js",
     "test:ward-frontend": "node test-ward-frontend.js",
+    "test:phase23-audit": "node test-phase23-audit.js",
+    "test:live-mongodb": "node test-live-mongodb.js",
+    "test:phase25-geofencing": "node test-phase25-geofencing-push.js",
+    "test:phase25-rbac": "node test-phase25-rbac.js",
+    "test:phase25-mongodb": "node test-phase25-mongodb.js",
+    "test:phase26-mongodb-live": "node test-phase26-mongodb-live.js",
+    "test:phase26-api-live": "node test-phase26-api-live.js",
+    "test:phase26": "node test-phase26-mongodb-live.js && node test-phase26-api-live.js",
+    "test:phase27-e2e": "node test-phase27-lifecycle-e2e.js",
     "seed:admin": "node scripts/seedAdmin.js",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:officer": "node scripts/seedOfficer.js",
-    "seed:wards": "node scripts/seedWards.js"
+    "seed:wards": "node scripts/seedWards.js",
+    "import:wards": "node scripts/importWardGeoJSON.js",
+    "db:backup": "node scripts/backupDatabase.js",
+    "db:restore": "node scripts/restoreDatabase.js"
   },
   "keywords": [
     "civicfix",
@@ -65,7 +77,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.12.1",
     "multer": "^2.5.0",
-    "nodemailer": "^10.6.0"
+    "nodemailer": "^10.6.0",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

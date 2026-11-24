@@ -515,7 +515,7 @@ export const uploadResolutionEvidenceImages = async (
 export const submitOfficerResolution = async (
   officerId,
   rawComplaintId,
-  { remarks, afterFiles = [], beforeFiles = [], caption = '', officerUser = null } = {}
+  { remarks, afterFiles = [], beforeFiles = [], afterImages = [], beforeImages = [], caption = '', officerUser = null } = {}
 ) => {
   assertDatabaseConnected();
 
@@ -577,6 +577,27 @@ export const submitOfficerResolution = async (
     }));
   }
 
+  // Support pre-uploaded image URL objects passed directly in body
+  if (Array.isArray(afterImages) && afterImages.length > 0) {
+    const directAfter = afterImages.map(img => {
+      if (typeof img === 'string') {
+        return { url: img, publicId: '', caption: caption || 'Work completion photo', uploadedAt: new Date(), uploadedBy: officerId };
+      }
+      return { url: img.url, publicId: img.publicId || '', caption: img.caption || caption || 'Work completion photo', uploadedAt: new Date(), uploadedBy: officerId };
+    });
+    newAfterImages = [...newAfterImages, ...directAfter];
+  }
+
+  if (Array.isArray(beforeImages) && beforeImages.length > 0) {
+    const directBefore = beforeImages.map(img => {
+      if (typeof img === 'string') {
+        return { url: img, publicId: '', caption: caption || 'Initial site condition', uploadedAt: new Date(), uploadedBy: officerId };
+      }
+      return { url: img.url, publicId: img.publicId || '', caption: img.caption || caption || 'Initial site condition', uploadedAt: new Date(), uploadedBy: officerId };
+    });
+    newBeforeImages = [...newBeforeImages, ...directBefore];
+  }
+
   if (!complaint.resolutionEvidence) {
     complaint.resolutionEvidence = {
       status: 'Not Submitted',
@@ -623,8 +644,9 @@ export const submitOfficerResolution = async (
     previousStatus,
     newStatus: 'Resolved',
     changedAt: new Date(),
-    changedBy: officerName,
-    notes: `Resolution submitted: ${remarks.trim()}`
+    changedBy: officerId,
+    changedByName: officerName,
+    note: `Resolution submitted: ${remarks.trim()}`
   });
 
   // Add to verificationHistory
@@ -883,8 +905,9 @@ export const rejectResolutionByCitizen = async (
     previousStatus: 'Resolved',
     newStatus: 'Reopened',
     changedAt: new Date(),
-    changedBy: citizenName,
-    notes: `Citizen rejected resolution: ${cleanReason}`
+    changedBy: citizenId,
+    changedByName: citizenName,
+    note: `Citizen rejected resolution: ${cleanReason}`
   });
 
   // Record in verificationHistory
@@ -1030,8 +1053,9 @@ export const reviewResolutionByAdmin = async (
       previousStatus,
       newStatus: targetComplaintStatus,
       changedAt: new Date(),
-      changedBy: adminName,
-      notes: `Admin Review Action (${action}): ${cleanNotes}`
+      changedBy: adminId,
+      changedByName: adminName,
+      note: `Admin Review Action (${action}): ${cleanNotes}`
     });
   }
 

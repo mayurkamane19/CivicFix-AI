@@ -12,7 +12,7 @@ import { successResponse, errorResponse } from '../utils/apiResponse.js';
  */
 export const submitComplaintFeedback = async (req, res, next) => {
   try {
-    const { complaintId } = req.params;
+    const complaintId = req.params.complaintId || req.body.complaintId;
     const { rating, comment } = req.body;
 
     // Authenticated citizen ID strictly derived from JWT session (anti-IDOR)

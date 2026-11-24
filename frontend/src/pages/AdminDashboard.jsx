@@ -30,8 +30,8 @@ import {
  * Main municipal operations command center for complaint triage, AI review, and resolution tracking
  */
 export const AdminDashboard = ({ currentUser, onNavigateHome, onNavigateLogin }) => {
-  // Access Guard: Ensure user is logged in and possesses 'admin' role
-  const isAdmin = currentUser && currentUser.role === 'admin';
+  // Access Guard: Ensure user is logged in and possesses 'admin' or 'department_head' role
+  const isAdmin = currentUser && (currentUser.role === 'admin' || currentUser.role === 'department_head');
 
   // Navigation Tabs: 'overview' | 'complaints' | 'departments' | 'officers'
   const [activeTab, setActiveTab] = useState('overview');

@@ -19,7 +19,7 @@ const sanitizeMongoUri = (uri) => {
  * @returns {Promise<typeof mongoose | null>}
  */
 export const connectDB = async () => {
-  const mongoUri = config.mongoUri || process.env.MONGODB_URI;
+  const mongoUri = (process.env.MONGODB_URI !== undefined) ? process.env.MONGODB_URI : config.mongoUri;
 
   if (!mongoUri || mongoUri.trim() === '') {
     console.warn('[Database] MONGODB_URI is not configured in .env. Server will run with database in disconnected state.');

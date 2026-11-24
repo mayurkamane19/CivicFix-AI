@@ -13,19 +13,23 @@ import {
   removeOfficerController,
   assignDepartmentsController,
   transferComplaintController,
-  getWardAnalyticsController
+  getWardAnalyticsController,
+  detectWardLocationController
 } from '../controllers/wardController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
-// 1. All ward management routes require valid JWT authentication
+// Public GPS geofencing lookup (used by citizen complaint form and public map)
+router.get('/detect-location', detectWardLocationController);
+
+// All municipal administration routes require valid JWT authentication
 router.use(protect);
 
 // 2. Specific routes (declared PRIOR to wildcard /:id to prevent route collision)
 router.get('/overview', authorize('admin', 'ward_admin'), getMunicipalOverviewController);
 router.get('/analytics/export', authorize('admin'), exportMunicipalWardCsvController);
-router.post('/complaints/:complaintId/transfer', authorize('admin'), transferComplaintController);
+router.post('/complaints/:complaintId/transfer', authorize('admin', 'ward_admin'), transferComplaintController);
 
 // 3. Collection routes
 router.route('/')

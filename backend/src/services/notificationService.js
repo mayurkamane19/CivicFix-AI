@@ -13,6 +13,7 @@ import {
   renderSlaEscalationEmail
 } from './emailTemplates.js';
 import { sendMailAsync } from './emailService.js';
+import { dispatchPushToUser } from './pushService.js';
 
 /**
  * Builds the canonical public tracking URL for a given complaint
@@ -112,7 +113,9 @@ export const queueNotification = async ({
     resolvedUser = complaint.assignedOfficer;
   }
 
-  // 3. Resolve actionUrl
+  // 3. Resolve actionUrl, title, and message
+  const resolvedNotificationTitle = title || subject;
+  const resolvedNotificationMessage = message || text || subject;
   const resolvedActionUrl = actionUrl || (
     complaint?.complaintId
       ? (recipientRole === 'officer'
@@ -127,8 +130,8 @@ export const queueNotification = async ({
   try {
     const notification = new NotificationLog({
       eventType,
-      title: title || subject,
-      message: message || text || subject,
+      title: resolvedNotificationTitle,
+      message: resolvedNotificationMessage,
       category: category || mapEventToCategory(eventType),
       priority,
       complaint: complaint ? (complaint._id || complaint.id) : null,
@@ -159,6 +162,20 @@ export const queueNotification = async ({
       setImmediate(() => {
         processNotificationAsync(notification._id).catch((err) => {
           console.warn(`[Notification Worker] Background dispatch error for ${notification._id}:`, err.message);
+        });
+      });
+    }
+
+    // 6. Trigger Web Push notification dispatch to active browser sessions (non-blocking)
+    if (resolvedUser) {
+      setImmediate(() => {
+        dispatchPushToUser(resolvedUser, {
+          title: resolvedNotificationTitle,
+          message: resolvedNotificationMessage,
+          complaintId: complaint?.complaintId,
+          url: resolvedActionUrl
+        }).catch((pushErr) => {
+          console.warn(`[Push Worker] Dispatch warning for user ${resolvedUser}:`, pushErr.message);
         });
       });
     }

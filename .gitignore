@@ -57,3 +57,12 @@ tmp/
 # Agent & Tool Metadata
 .gemini/
 .system_generated/
+
+# Database Backups and Local Dumps
+backend/backups/
+backups/
+
+# Playwright Test Reports and Artifacts
+frontend/test-results/
+frontend/playwright-report/
+

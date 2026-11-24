@@ -25,8 +25,7 @@ const slaConfigSchema = new mongoose.Schema(
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Department',
-      default: null, // null represents global default fallback configuration
-      index: true
+      default: null // null represents global default fallback configuration
     },
     departmentName: {
       type: String,

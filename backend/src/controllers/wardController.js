@@ -11,7 +11,8 @@ import {
   transferComplaintBetweenWards,
   getMunicipalOverviewStats,
   getWardAnalytics,
-  exportMunicipalWardCsv
+  exportMunicipalWardCsv,
+  detectWardByLocation
 } from '../services/wardService.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
 
@@ -84,6 +85,13 @@ export const exportMunicipalWardCsvController = async (req, res, next) => {
 export const getWardDetailsController = async (req, res, next) => {
   try {
     const { id } = req.params;
+    // Data isolation: Ward Administrator can only access records for their assigned ward
+    if (req.user && req.user.role === 'ward_admin') {
+      const userWardId = req.user.ward ? (req.user.ward._id ? req.user.ward._id.toString() : req.user.ward.toString()) : null;
+      if (!userWardId || userWardId !== id) {
+        return errorResponse(res, 403, 'Access denied: Ward Administrators can only access records for their assigned ward');
+      }
+    }
     const details = await getWardById(id);
     return successResponse(res, 200, 'Ward details retrieved successfully', details);
   } catch (error) {
@@ -144,6 +152,13 @@ export const deleteWardController = async (req, res, next) => {
 export const getWardOfficersController = async (req, res, next) => {
   try {
     const { id } = req.params;
+    // Data isolation: Ward Administrator can only access officers for their assigned ward
+    if (req.user && req.user.role === 'ward_admin') {
+      const userWardId = req.user.ward ? (req.user.ward._id ? req.user.ward._id.toString() : req.user.ward.toString()) : null;
+      if (!userWardId || userWardId !== id) {
+        return errorResponse(res, 403, 'Access denied: Ward Administrators can only access officers for their assigned ward');
+      }
+    }
     const details = await getWardById(id);
     return successResponse(res, 200, 'Ward officers retrieved successfully', {
       officers: details.ward.officers || []
@@ -241,8 +256,36 @@ export const getWardAnalyticsController = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
+    // Data isolation: Ward Administrator can only access analytics for their assigned ward
+    if (req.user && req.user.role === 'ward_admin') {
+      const userWardId = req.user.ward ? (req.user.ward._id ? req.user.ward._id.toString() : req.user.ward.toString()) : null;
+      if (!userWardId || userWardId !== id) {
+        return errorResponse(res, 403, 'Access denied: Ward Administrators can only access analytics for their assigned ward');
+      }
+    }
     const analytics = await getWardAnalytics(id, { startDate, endDate });
     return successResponse(res, 200, 'Ward analytics retrieved successfully', analytics);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controller: GET /api/wards/detect-location?lat=...&lng=...
+ * Detects municipal ward using point-in-polygon geofencing
+ */
+export const detectWardLocationController = async (req, res, next) => {
+  try {
+    const { lat, lng, latitude, longitude } = req.query;
+    const targetLat = lat !== undefined ? lat : latitude;
+    const targetLng = lng !== undefined ? lng : longitude;
+
+    if (targetLat === undefined || targetLng === undefined) {
+      return errorResponse(res, 400, 'Query parameters "lat" and "lng" are required');
+    }
+
+    const result = await detectWardByLocation(targetLat, targetLng);
+    return successResponse(res, 200, result.message, result);
   } catch (error) {
     next(error);
   }

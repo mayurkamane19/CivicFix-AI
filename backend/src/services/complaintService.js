@@ -1,5 +1,7 @@
 import { Complaint } from '../models/Complaint.js';
+import { Ward } from '../models/Ward.js';
 import { getDatabaseStatus } from '../config/db.js';
+import { detectWardForCoordinates } from '../utils/geofencing.js';
 import {
   uploadImageToCloudinary,
   deleteImageFromCloudinary,
@@ -183,13 +185,35 @@ export const createComplaint = async ({
       existing = await Complaint.findOne({ complaintId });
     }
 
-    // 9. Create and Persist Complaint Document
+    // 9. Spatial Geofencing: Automatically map GPS coordinates to municipal ward boundary
+    let detectedWardId = null;
+    let detectedWardName = null;
+    let detectedWardCode = null;
+
+    if (parsedLat !== null && parsedLng !== null) {
+      try {
+        const activeWards = await Ward.find({ isActive: true });
+        const geofenceResult = detectWardForCoordinates(parsedLat, parsedLng, activeWards);
+        if (geofenceResult && geofenceResult.matchedWard) {
+          detectedWardId = geofenceResult.matchedWard._id;
+          detectedWardName = geofenceResult.matchedWard.name;
+          detectedWardCode = geofenceResult.matchedWard.code;
+        }
+      } catch (geoErr) {
+        // Non-blocking: preserve complaint creation if spatial query encounters error
+      }
+    }
+
+    // 10. Create and Persist Complaint Document
     // Temporary Guest Submission: reportedBy defaults to null until full auth binding is connected
     const complaint = new Complaint({
       complaintId,
       title: trimmedTitle,
       description: trimmedDescription,
       category: trimmedCategory,
+      ward: detectedWardId,
+      wardName: detectedWardName,
+      wardCode: detectedWardCode,
       location: {
         address: trimmedAddress,
         latitude: parsedLat,

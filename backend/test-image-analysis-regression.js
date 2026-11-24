@@ -16,6 +16,7 @@
 
 import mongoose from 'mongoose';
 import { Complaint } from './src/models/Complaint.js';
+import { Ward } from './src/models/Ward.js';
 import { createComplaint } from './src/services/complaintService.js';
 import {
   validateImageInput,
@@ -38,6 +39,11 @@ Complaint.find = () => ({
     limit: () => ({
       lean: async () => []
     })
+  })
+});
+Ward.find = () => ({
+  select: () => ({
+    lean: async () => []
   })
 });
 Complaint.prototype.save = async function () {

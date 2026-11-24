@@ -6,6 +6,7 @@ import { User } from '../models/User.js';
 import { Feedback } from '../models/Feedback.js';
 import { getDatabaseStatus } from '../config/db.js';
 import { queueNotification } from './notificationService.js';
+import { detectWardForCoordinates, validateGeoJSONGeometry } from '../utils/geofencing.js';
 
 /**
  * Service: Creates a new municipal ward
@@ -754,6 +755,17 @@ export const transferComplaintBetweenWards = async (
     throw error;
   }
 
+  // 1b. Ward Administrator Authorization Scoping: cannot transfer complaints outside assigned ward
+  if (adminUser && adminUser.role === 'ward_admin') {
+    const userWardId = adminUser.ward ? (adminUser.ward._id ? adminUser.ward._id.toString() : adminUser.ward.toString()) : null;
+    const compWardId = complaint.ward ? (complaint.ward._id ? complaint.ward._id.toString() : complaint.ward.toString()) : null;
+    if (!compWardId || compWardId !== userWardId) {
+      const error = new Error('Access denied: Ward Administrators cannot transfer complaints belonging to other wards');
+      error.statusCode = 403;
+      throw error;
+    }
+  }
+
   // 2. Validate Destination Ward
   const destWard = await Ward.findById(destinationWardId);
   if (!destWard) {
@@ -1229,4 +1241,18 @@ export const exportMunicipalWardCsv = async ({ wardId = null, startDate = '', en
   ]);
 
   return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+};
+
+/**
+ * Service: Detects the appropriate municipal ward for a given latitude & longitude using geofencing.
+ * @param {number} latitude
+ * @param {number} longitude
+ * @returns {Promise<object>}
+ */
+export const detectWardByLocation = async (latitude, longitude) => {
+  if (getDatabaseStatus() !== 'connected') {
+    return detectWardForCoordinates(latitude, longitude, []);
+  }
+  const activeWards = await Ward.find({ isActive: true });
+  return detectWardForCoordinates(latitude, longitude, activeWards);
 };

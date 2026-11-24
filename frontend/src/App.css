@@ -751,7 +751,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 992px) {
   .navbar-links {
     display: none;
   }
@@ -767,7 +767,9 @@
   .mobile-menu {
     display: block;
   }
+}
 
+@media (max-width: 640px) {
   .hero-title {
     font-size: 1.875rem;
   }

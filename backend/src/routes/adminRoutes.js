@@ -50,29 +50,31 @@ import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
-// Enforce JWT authentication and strict admin role authorization across all endpoints
+// Enforce JWT authentication across all administrative endpoints
 router.use(protect);
-router.use(authorize('admin'));
 
-// Municipal Analytics & Complaints
-router.get('/dashboard/stats', getStats);
-router.get('/complaints', getComplaints);
-router.get('/map/complaints', getAdminMap);
-router.get('/complaints/:complaintId', getComplaintById);
-router.get('/complaints/:complaintId/history', getHistory);
-router.patch('/complaints/:complaintId/status', updateStatus);
+// Municipal Analytics & Complaints (Data scoped by role: admin, ward_admin, department_head)
+router.get('/dashboard/stats', authorize('admin', 'ward_admin', 'department_head'), getStats);
+router.get('/complaints', authorize('admin', 'ward_admin', 'department_head'), getComplaints);
+router.get('/map/complaints', authorize('admin', 'ward_admin', 'department_head'), getAdminMap);
+router.get('/complaints/:complaintId', authorize('admin', 'ward_admin', 'department_head'), getComplaintById);
+router.get('/complaints/:complaintId/history', authorize('admin', 'ward_admin', 'department_head'), getHistory);
+router.patch('/complaints/:complaintId/status', authorize('admin'), updateStatus);
 
 // Department Management Endpoints
-router.get('/departments', getDepartments);
-router.post('/departments', createDepartmentController);
-router.patch('/departments/:departmentId', updateDepartmentController);
+router.get('/departments', authorize('admin', 'ward_admin', 'department_head'), getDepartments);
+router.post('/departments', authorize('admin'), createDepartmentController);
+router.patch('/departments/:departmentId', authorize('admin'), updateDepartmentController);
 
 // Field Officers Management Endpoint
-router.get('/officers', getOfficers);
+router.get('/officers', authorize('admin', 'ward_admin', 'department_head'), getOfficers);
 
 // Complaint Assignment & Assignment History Endpoints
-router.patch('/complaints/:complaintId/assignment', assignComplaintController);
-router.get('/complaints/:complaintId/assignment-history', getAssignmentHistoryController);
+router.patch('/complaints/:complaintId/assignment', authorize('admin', 'department_head'), assignComplaintController);
+router.get('/complaints/:complaintId/assignment-history', authorize('admin', 'ward_admin', 'department_head'), getAssignmentHistoryController);
+
+// Restrict all other management & analytics endpoints to municipal admin
+router.use(authorize('admin'));
 
 // Notification Logs Monitoring (Admin Only)
 router.get('/notifications', getAdminNotifications);

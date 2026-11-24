@@ -92,8 +92,10 @@ export const LandingPage = () => {
   // Auth Handlers
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
-    if (user.role === 'admin' || user.role === 'ward_admin') {
+    if (user.role === 'admin' || user.role === 'department_head') {
       setCurrentView('admin');
+    } else if (user.role === 'ward_admin') {
+      setCurrentView('municipal');
     } else if (user.role === 'officer') {
       setCurrentView('officer');
     } else {

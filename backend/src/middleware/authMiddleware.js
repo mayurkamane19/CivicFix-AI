@@ -79,6 +79,38 @@ export const protect = async (req, res, next) => {
 };
 
 /**
+ * Optional authentication middleware
+ * Attaches user to req.user if a valid token is provided, but does NOT reject guest requests.
+ */
+export const optionalProtect = async (req, res, next) => {
+  let token;
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (!token || typeof token !== 'string' || token.trim() === '') {
+    return next();
+  }
+
+  try {
+    const decoded = verifyToken(token.trim());
+    if (decoded && decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) {
+      const user = await User.findById(decoded.id)
+        .select('-password')
+        .populate('department', 'name code isActive');
+      if (user && user.isActive) {
+        req.user = user;
+      }
+    }
+  } catch {
+    // Non-blocking: continue as guest
+  }
+  next();
+};
+
+/**
  * Role-based authorization middleware
  * @param  {...string} roles - Permitted roles (e.g. 'admin')
  */
@@ -96,5 +128,6 @@ export const authorize = (...roles) => {
 
 export default {
   protect,
+  optionalProtect,
   authorize
 };

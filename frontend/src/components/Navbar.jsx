@@ -106,22 +106,24 @@ export const Navbar = ({
               </button>
             </>
           )}
-          {currentUser?.role === 'admin' && (
+          {(currentUser?.role === 'admin' || currentUser?.role === 'department_head') && (
             <>
               <button
                 type="button"
                 onClick={onNavigateAdmin}
                 className={`nav-link-btn nav-link-admin ${currentView === 'admin' ? 'nav-link-active' : ''}`}
               >
-                🛡️ Admin Portal
+                {currentUser?.role === 'department_head' ? '🏢 Dept Portal' : '🛡️ Admin Portal'}
               </button>
-              <button
-                type="button"
-                onClick={onNavigateMunicipal}
-                className={`nav-link-btn nav-link-admin ${currentView === 'municipal' ? 'nav-link-active' : ''}`}
-              >
-                🏛️ Multi-Ward
-              </button>
+              {currentUser?.role === 'admin' && (
+                <button
+                  type="button"
+                  onClick={onNavigateMunicipal}
+                  className={`nav-link-btn nav-link-admin ${currentView === 'municipal' ? 'nav-link-active' : ''}`}
+                >
+                  🏛️ Multi-Ward
+                </button>
+              )}
             </>
           )}
           {currentUser?.role === 'ward_admin' && (
@@ -295,7 +297,7 @@ export const Navbar = ({
                 </button>
               </>
             )}
-          {currentUser?.role === 'admin' && (
+          {(currentUser?.role === 'admin' || currentUser?.role === 'department_head') && (
               <>
                 <button
                   type="button"
@@ -305,18 +307,20 @@ export const Navbar = ({
                     setMobileMenuOpen(false);
                   }}
                 >
-                  🛡️ Municipal Admin Portal
+                  {currentUser?.role === 'department_head' ? '🏢 Department Portal' : '🛡️ Municipal Admin Portal'}
                 </button>
-                <button
-                  type="button"
-                  className="mobile-nav-link-btn mobile-nav-admin"
-                  onClick={() => {
-                    onNavigateMunicipal();
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  🏛️ Multi-Ward Command
-                </button>
+                {currentUser?.role === 'admin' && (
+                  <button
+                    type="button"
+                    className="mobile-nav-link-btn mobile-nav-admin"
+                    onClick={() => {
+                      onNavigateMunicipal();
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    🏛️ Multi-Ward Command
+                  </button>
+                )}
               </>
             )}
             {currentUser?.role === 'ward_admin' && (

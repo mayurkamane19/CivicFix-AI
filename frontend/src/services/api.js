@@ -3320,6 +3320,25 @@ export const exportMunicipalWardCsvApi = async ({ wardId = '', startDate = '', e
   }
 };
 
+/**
+ * Phase 25: Detect Municipal Ward from GPS Coordinates using Point-in-Polygon Geofencing
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {Promise<{success: boolean, data?: object, message?: string, error?: string}>}
+ */
+export const detectWardByLocationApi = async (lat, lng) => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/wards/detect-location?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.message || 'Geofencing lookup failed' };
+    }
+    return { success: true, data: data.data, message: data.message };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error during geofencing lookup' };
+  }
+};
+
 export default {
   API_BASE_URL,
   checkHealth,
@@ -3417,6 +3436,7 @@ export default {
   getMunicipalOverviewApi,
   getWardAnalyticsApi,
   exportMunicipalWardCsvApi,
+  detectWardByLocationApi,
   getStoredToken,
   setStoredToken,
   getStoredUser,

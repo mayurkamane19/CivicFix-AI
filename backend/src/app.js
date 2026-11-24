@@ -20,8 +20,13 @@ const app = express();
 app.use(securityHeaders);
 
 // 2. CORS Configuration
+const configuredOrigins = (config.corsOrigin || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
-  config.corsOrigin,
+  ...configuredOrigins,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000'

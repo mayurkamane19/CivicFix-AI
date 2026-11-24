@@ -52,14 +52,29 @@ export const getComplaints = async (req, res, next) => {
       limit
     } = req.query;
 
+    let targetWard = ward;
+    let targetDept = department;
+
+    // Ward admin data scoping: strictly restrict queries to their assigned ward
+    if (req.user && req.user.role === 'ward_admin') {
+      const userWardId = req.user.ward ? (req.user.ward._id ? req.user.ward._id.toString() : req.user.ward.toString()) : null;
+      targetWard = userWardId || 'none';
+    }
+
+    // Department head data scoping: strictly restrict queries to their assigned department
+    if (req.user && req.user.role === 'department_head') {
+      const userDeptId = req.user.department ? (req.user.department._id ? req.user.department._id.toString() : req.user.department.toString()) : null;
+      targetDept = userDeptId || 'none';
+    }
+
     const result = await getComplaintsForAdmin({
       search,
       category,
       status,
       severity,
-      department,
+      department: targetDept,
       officer,
-      ward,
+      ward: targetWard,
       sortBy,
       page,
       limit
@@ -84,6 +99,24 @@ export const getComplaintById = async (req, res, next) => {
   try {
     const { complaintId } = req.params;
     const complaint = await getAdminComplaintDetails(complaintId);
+
+    // Ward admin data isolation: cannot view complaints from other wards
+    if (req.user && req.user.role === 'ward_admin') {
+      const userWardId = req.user.ward ? (req.user.ward._id ? req.user.ward._id.toString() : req.user.ward.toString()) : null;
+      const compWardId = complaint.ward ? (complaint.ward._id ? complaint.ward._id.toString() : complaint.ward.toString()) : null;
+      if (!compWardId || compWardId !== userWardId) {
+        return errorResponse(res, 403, 'Access denied: Ward Administrators cannot view complaints from other wards');
+      }
+    }
+
+    // Department head data isolation: cannot view complaints from other departments
+    if (req.user && req.user.role === 'department_head') {
+      const userDeptId = req.user.department ? (req.user.department._id ? req.user.department._id.toString() : req.user.department.toString()) : null;
+      const compDeptId = complaint.assignedDepartment ? (complaint.assignedDepartment._id ? complaint.assignedDepartment._id.toString() : complaint.assignedDepartment.toString()) : null;
+      if (!compDeptId || compDeptId !== userDeptId) {
+        return errorResponse(res, 403, 'Access denied: Department Heads cannot view complaints from other departments');
+      }
+    }
 
     return successResponse(res, 200, 'Complaint details retrieved successfully', {
       complaint
@@ -217,6 +250,14 @@ export const assignComplaintController = async (req, res, next) => {
   try {
     const { complaintId } = req.params;
     const { departmentId, officerId, note } = req.body;
+
+    // Department head scoping: can only assign within their own department
+    if (req.user && req.user.role === 'department_head') {
+      const userDeptId = req.user.department ? (req.user.department._id ? req.user.department._id.toString() : req.user.department.toString()) : null;
+      if (!userDeptId || userDeptId !== departmentId) {
+        return errorResponse(res, 403, 'Access denied: Department Heads can only assign complaints to their own department');
+      }
+    }
 
     // Security: derive admin identity solely from authenticated backend req.user
     const updatedComplaint = await assignComplaint(complaintId, {

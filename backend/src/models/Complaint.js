@@ -691,7 +691,6 @@ const complaintSchema = new mongoose.Schema(
 );
 
 // Query optimization indexes
-complaintSchema.index({ complaintId: 1 }, { unique: true });
 complaintSchema.index({ status: 1 });
 complaintSchema.index({ category: 1 });
 complaintSchema.index({ 'aiAnalysis.status': 1 });

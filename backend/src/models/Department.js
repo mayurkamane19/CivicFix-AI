@@ -41,8 +41,6 @@ const departmentSchema = new mongoose.Schema(
 );
 
 // Query optimization indexes
-departmentSchema.index({ code: 1 }, { unique: true });
-departmentSchema.index({ name: 1 }, { unique: true });
 departmentSchema.index({ isActive: 1 });
 
 /**

@@ -89,7 +89,7 @@ export const uploadEvidenceController = async (req, res, next) => {
 export const submitResolutionController = async (req, res, next) => {
   try {
     const { complaintId } = req.params;
-    const { remarks, caption } = req.body;
+    const { remarks, caption, afterImages = [], beforeImages = [] } = req.body;
 
     let afterFiles = [];
     let beforeFiles = [];
@@ -107,6 +107,8 @@ export const submitResolutionController = async (req, res, next) => {
       remarks,
       afterFiles,
       beforeFiles,
+      afterImages,
+      beforeImages,
       caption,
       officerUser: req.user
     });
@@ -142,7 +144,7 @@ export const verifyResolutionController = async (req, res, next) => {
 export const rejectResolutionController = async (req, res, next) => {
   try {
     const { complaintId } = req.params;
-    const { reason } = req.body;
+    const reason = req.body.reason || req.body.remarks;
 
     let files = [];
     if (Array.isArray(req.files)) {

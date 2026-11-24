@@ -147,7 +147,7 @@ export const MunicipalDashboard = ({ currentUser, onNavigateHome, onNavigateLogi
         )}
 
         {activeTab === 'wards' && (
-          <WardManagement onSelectWardForDetails={handleSelectWardFromOverview} />
+          <WardManagement currentUser={currentUser} onSelectWardForDetails={handleSelectWardFromOverview} />
         )}
 
         {activeTab === 'gis' && (

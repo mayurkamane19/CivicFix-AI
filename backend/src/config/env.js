@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load environment variables from .env file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from backend/.env or root .env
+dotenv.config({ path: path.resolve(__dirname, '../../../backend/.env') });
 dotenv.config();
 
 const nodeEnv = process.env.NODE_ENV || 'development';
@@ -19,6 +25,7 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173',
   frontendUrl: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:5173',
   mongoUri: process.env.MONGODB_URI || '',
+  mongoTestUri: process.env.MONGODB_TEST_URI || '',
   jwtSecret: rawJwtSecret || 'civicfix_jwt_secret_key_development_only_change_in_production_2026',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   jwtAlgorithm: 'HS256',

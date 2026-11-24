@@ -114,8 +114,6 @@ const wardSchema = new mongoose.Schema(
 );
 
 // Query optimization indexes
-wardSchema.index({ code: 1 }, { unique: true });
-wardSchema.index({ number: 1 }, { unique: true });
 wardSchema.index({ zone: 1 });
 wardSchema.index({ isActive: 1 });
 

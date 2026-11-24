@@ -15,7 +15,7 @@ import {
   rejectResolutionController
 } from '../controllers/resolutionController.js';
 import { handleImageUpload, handleEvidenceUpload } from '../middleware/uploadMiddleware.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect, optionalProtect } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -27,8 +27,8 @@ router.get('/my/dashboard', protect, getCitizenDashboard);
 router.get('/my/complaints', protect, getMyCitizensComplaints);
 router.get('/my/:complaintId', protect, getMyCitizenComplaintDetails);
 
-// Public complaint submission (supports JSON and multipart/form-data with optional 'image')
-router.post('/', handleImageUpload, submitComplaint);
+// Public complaint submission (supports optional auth, JSON and multipart/form-data with optional 'image')
+router.post('/', optionalProtect, handleImageUpload, submitComplaint);
 
 // Public complaint tracking
 router.get('/track/:complaintId', trackComplaint);

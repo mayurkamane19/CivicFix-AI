@@ -40,7 +40,6 @@ const feedbackSchema = new mongoose.Schema(
 );
 
 // Query optimization & constraint indexes
-feedbackSchema.index({ complaint: 1 }, { unique: true });
 feedbackSchema.index({ citizen: 1 });
 feedbackSchema.index({ rating: 1 });
 feedbackSchema.index({ createdAt: -1 });
