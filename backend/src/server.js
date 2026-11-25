@@ -5,13 +5,14 @@ import { connectDB } from './config/db.js';
 import { startSlaScheduler, stopSlaScheduler } from './services/slaMonitoringService.js';
 
 const PORT = config.port;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Start Express HTTP Server
-const server = app.listen(PORT, async () => {
+const server = app.listen(PORT, HOST, async () => {
   console.log('==================================================');
   console.log('  🏛️  CivicFix AI - Backend API Service (Phase 2)');
-  console.log(`  🚀 Server running on: http://localhost:${PORT}`);
-  console.log(`  🩺 Health check:      http://localhost:${PORT}/api/health`);
+  console.log(`  🚀 Server running on: http://${HOST}:${PORT}`);
+  console.log(`  🩺 Health check:      http://${HOST}:${PORT}/api/health`);
   console.log(`  🌱 Environment:       ${config.nodeEnv}`);
   console.log('==================================================');
 
